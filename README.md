@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="assets/assets/banner.png" alt="Business Sarthi: Guess less. Grow more." width="100%">
+  <img src="assets/banner.png" alt="Business Sarthi: Guess less. Grow more." width="100%">
 </p>
 
 <p align="center">
-  <img alt="Status" src="assets/https://img.shields.io/badge/status-concept%20%26%20design-F76707?style=for-the-badge">
-  <img alt="Hackathon" src="assets/https://img.shields.io/badge/The%20Corporate%20Glitch-'26-E03131?style=for-the-badge">
-  <img alt="Team" src="assets/https://img.shields.io/badge/team-CodeX-1B2A49?style=for-the-badge">
-  <img alt="College" src="assets/https://img.shields.io/badge/IILM%20University-7048E8?style=for-the-badge">
+  <img alt="Status" src="https://img.shields.io/badge/status-concept%20%26%20design-F76707?style=for-the-badge">
+  <img alt="Hackathon" src="https://img.shields.io/badge/The%20Corporate%20Glitch-'26-E03131?style=for-the-badge">
+  <img alt="Team" src="https://img.shields.io/badge/team-CodeX-1B2A49?style=for-the-badge">
+  <img alt="College" src="https://img.shields.io/badge/IILM%20University-7048E8?style=for-the-badge">
 </p>
 
 <h3 align="center">A vernacular, hyper-local business advisor for first-time and small shop owners.</h3>
