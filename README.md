@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="banner.png" alt="Business Sarthi: Guess less. Grow more." width="100%">
+  <img src="assets/assets/banner.png" alt="Business Sarthi: Guess less. Grow more." width="100%">
 </p>
 
 <p align="center">
-  <img alt="Status" src="https://img.shields.io/badge/status-concept%20%26%20design-F76707?style=for-the-badge">
-  <img alt="Hackathon" src="https://img.shields.io/badge/The%20Corporate%20Glitch-'26-E03131?style=for-the-badge">
-  <img alt="Team" src="https://img.shields.io/badge/team-CodeX-1B2A49?style=for-the-badge">
-  <img alt="College" src="https://img.shields.io/badge/IILM%20University-7048E8?style=for-the-badge">
+  <img alt="Status" src="assets/https://img.shields.io/badge/status-concept%20%26%20design-F76707?style=for-the-badge">
+  <img alt="Hackathon" src="assets/https://img.shields.io/badge/The%20Corporate%20Glitch-'26-E03131?style=for-the-badge">
+  <img alt="Team" src="assets/https://img.shields.io/badge/team-CodeX-1B2A49?style=for-the-badge">
+  <img alt="College" src="assets/https://img.shields.io/badge/IILM%20University-7048E8?style=for-the-badge">
 </p>
 
 <h3 align="center">A vernacular, hyper-local business advisor for first-time and small shop owners.</h3>
@@ -40,7 +40,7 @@
 ## 📖 The story
 
 <p align="center">
-  <img src="story.png" alt="Ramesh takes a loan and opens his first kirana shop. Four things can go wrong: losses, a stuck margin, missed EMIs, and wrong stock." width="85%">
+  <img src="assets/story.png" alt="Ramesh takes a loan and opens his first kirana shop. Four things can go wrong: losses, a stuck margin, missed EMIs, and wrong stock." width="85%">
 </p>
 
 Ramesh takes a loan and opens his first kirana shop. He has no idea how much he will sell. From that one blind start, the roots branch out:
@@ -59,13 +59,13 @@ Ramesh takes a loan and opens his first kirana shop. He has no idea how much he 
 Every business owner meets a chain of questions, from the first idea to daily operations. Existing tools solve one slice of it, such as ledgers, billing or scheme portals. None gives a first-time owner a forecast at set-up or a regular review after it.
 
 <p align="center">
-  <img src="problem-tiles.png" alt="Every business owner's problem: where to set up, how much to invest, how much will I sell, poor inventory management, how to expand, which scheme fits me, advice in my language, consultants cost too much." width="85%">
+  <img src="assets/problem-tiles.png" alt="Every business owner's problem: where to set up, how much to invest, how much will I sell, poor inventory management, how to expand, which scheme fits me, advice in my language, consultants cost too much." width="85%">
 </p>
 
 ### Why it matters beyond one shop
 
 <p align="center">
-  <img src="msme-stakes.png" alt="MSMEs account for 48.58% of exports, 35.4% of manufacturing output and 31.1% of GDP. 38.9 crore jobs depend on MSMEs." width="85%">
+  <img src="assets/msme-stakes.png" alt="MSMEs account for 48.58% of exports, 35.4% of manufacturing output and 31.1% of GDP. 38.9 crore jobs depend on MSMEs." width="85%">
 </p>
 
 > Source: MSME ministry fact sheet, as of Jan 2026 ([PIB, Jun 2026](https://static.pib.gov.in/WriteReadData/specificdocs/documents/2026/jun/doc2026626903401.pdf)). The "about 3% off GDP" figure is simple illustrative arithmetic (31.1% × 10%), not a forecast.
@@ -77,7 +77,7 @@ Every business owner meets a chain of questions, from the first idea to daily op
 **Business Sarthi** guides a shop owner from idea to growth on one platform, using the owner's own local data. It forecasts demand, revenue and break-even before set-up, then re-forecasts every 3 months from real sales and advises: **grow, hold or pivot**. Stock tracking, scheme matching, alerts, and a local-language chatbot support the owner throughout.
 
 <p align="center">
-  <img src="solution.png" alt="Eight Business Sarthi features around a tech-enabled kirana shop: forecast at set-up, right place and products, smart stock and assets, schemes and loans matched, 3-month review, alerts and SOS, advice in your language, and the aim." width="100%">
+  <img src="assets/solution.png" alt="Eight Business Sarthi features around a tech-enabled kirana shop: forecast at set-up, right place and products, smart stock and assets, schemes and loans matched, 3-month review, alerts and SOS, advice in your language, and the aim." width="100%">
 </p>
 
 | # | Feature | Problem it solves |
@@ -97,7 +97,7 @@ Every business owner meets a chain of questions, from the first idea to daily op
 The core idea is a loop, not a one-time report. A competitor can copy any single feature. It is much harder to copy a forecast that gets sharper because every other feature feeds it.
 
 <p align="center">
-  <img src="hero-loop.png" alt="The hero loop: Forecast, Run, Review, Act, with local map data, stock tracking, alerts, the language chatbot and schemes feeding the stages." width="100%">
+  <img src="assets/hero-loop.png" alt="The hero loop: Forecast, Run, Review, Act, with local map data, stock tracking, alerts, the language chatbot and schemes feeding the stages." width="100%">
 </p>
 
 | Stage | What happens | Fed by |
@@ -116,7 +116,7 @@ The core idea is a loop, not a one-time report. A competitor can copy any single
 <table>
 <tr>
 <td width="38%" valign="top">
-  <img src="owner-journey.png" alt="The owner's journey in eight steps, from signing in with a phone number to the 3-month re-forecast." width="100%">
+  <img src="assets/owner-journey.png" alt="The owner's journey in eight steps, from signing in with a phone number to the 3-month re-forecast." width="100%">
 </td>
 <td valign="top">
 
@@ -136,7 +136,7 @@ The core idea is a loop, not a one-time report. A competitor can copy any single
 ### System architecture and process flow
 
 <p align="center">
-  <img src="architecture.png" alt="System architecture: inputs, understand and store, engines, outputs, with a grounded chatbot and safety layer, plus the set-up and run process flowchart." width="100%">
+  <img src="assets/architecture.png" alt="System architecture: inputs, understand and store, engines, outputs, with a grounded chatbot and safety layer, plus the set-up and run process flowchart." width="100%">
 </p>
 
 **Design principles**
@@ -152,7 +152,7 @@ The core idea is a loop, not a one-time report. A competitor can copy any single
 > The stack below is **planned** and may change as we build the prototype.
 
 <p align="center">
-  <img src="tech-stack.png" alt="Planned tech stack in six groups: frontend, backend, ML and forecast, language and chatbot, database and auth, data and maps." width="100%">
+  <img src="assets/tech-stack.png" alt="Planned tech stack in six groups: frontend, backend, ML and forecast, language and chatbot, database and auth, data and maps." width="100%">
 </p>
 
 | Layer | Planned tools |
@@ -168,7 +168,7 @@ The core idea is a loop, not a one-time report. A competitor can copy any single
 ### Request flow and model training
 
 <p align="center">
-  <img src="request-flow.png" alt="Live request flow from the owner's phone through the backend, database, forecast model and chatbot, plus the offline model-training pipeline." width="100%">
+  <img src="assets/request-flow.png" alt="Live request flow from the owner's phone through the backend, database, forecast model and chatbot, plus the offline model-training pipeline." width="100%">
 </p>
 
 **Forecast approach (planned).** Start with a simple seasonal baseline, then move to gradient-boosted trees (e.g. XGBoost). The prototype will train on test data and refit on real pilot sales later. Each quarter we compare the forecast with actual sales and fix the model.
@@ -178,7 +178,7 @@ The core idea is a loop, not a one-time report. A competitor can copy any single
 <table>
 <tr>
 <td width="38%" valign="top">
-  <img src="faq.png" alt="Five likely questions: is this a ChatGPT wrapper, where does local data come from, how can we trust the forecast, will a busy owner log sales daily, what if the AI gets it wrong." width="100%">
+  <img src="assets/faq.png" alt="Five likely questions: is this a ChatGPT wrapper, where does local data come from, how can we trust the forecast, will a busy owner log sales daily, what if the AI gets it wrong." width="100%">
 </td>
 <td valign="top">
 
@@ -208,7 +208,7 @@ Alerts and SOS are rule-based. Forecasts are ranges. Chatbot answers cite their 
 <table>
 <tr>
 <td width="42%" valign="top">
-  <img src="before-after.png" alt="Before versus with Business Sarthi, six rows from guesswork to a forecast range." width="100%">
+  <img src="assets/before-after.png" alt="Before versus with Business Sarthi, six rows from guesswork to a forecast range." width="100%">
 </td>
 <td valign="top">
 
@@ -230,7 +230,7 @@ Alerts and SOS are rule-based. Forecasts are ranges. Chatbot answers cite their 
 ## 🔍 How we compare
 
 <p align="center">
-  <img src="competitors.png" alt="Comparison of Business Sarthi with Khatabook, OkCredit, Vyapar, myScheme and Udyami Mitra on forecasting, ledger and billing, 3-month re-forecast, and scheme and loan links." width="100%">
+  <img src="assets/competitors.png" alt="Comparison of Business Sarthi with Khatabook, OkCredit, Vyapar, myScheme and Udyami Mitra on forecasting, ledger and billing, 3-month re-forecast, and scheme and loan links." width="100%">
 </p>
 
 > Based on each product's public pages at the time of writing. ✔ = described on its public page, ◐ = only linked or mentioned, ✘ = not described on its public page. Products change, so please check their current pages.
@@ -242,7 +242,7 @@ Alerts and SOS are rule-based. Forecasts are ranges. Chatbot answers cite their 
 <table>
 <tr>
 <td width="36%" valign="top">
-  <img src="monetization.png" alt="Five proposed revenue models: freemium, quarterly plan, loan referrals, supplier tie-ups, institutional licence." width="100%">
+  <img src="assets/monetization.png" alt="Five proposed revenue models: freemium, quarterly plan, loan referrals, supplier tie-ups, institutional licence." width="100%">
 </td>
 <td valign="top">
 
@@ -265,7 +265,7 @@ These are **proposed** models, to be validated in the pilot.
 ## 📈 Expected impact (a target to test)
 
 <p align="center">
-  <img src="scenario.png" alt="Scenario model: out of every 100 shops, about 70 are still open after five years for a typical small firm, 72 with tech tools alone, and 81 with Business Sarthi." width="100%">
+  <img src="assets/scenario.png" alt="Scenario model: out of every 100 shops, about 70 are still open after five years for a typical small firm, 72 with tech tools alone, and 81 with Business Sarthi." width="100%">
 </p>
 
 - **Baseline:** about 70% of Indian firms survive beyond five years (Policy Edge, 2026). The source does not specify firm size, so this may be generous for micro firms.
