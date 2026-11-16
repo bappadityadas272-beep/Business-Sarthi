@@ -6,7 +6,7 @@
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-03"
+  current_focus: "M-04"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -60,7 +60,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 |---|---|---|---|---|---|---|---|
 | M-01 | OSM client (Overpass + Nominatim), cache table, feature extractor | F2 | P0 | B-04 | TODO | Given a pin, returns counts of competitors, homes, schools, transit; second call hits cache; User-Agent set | Mock responses in tests |
 | M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | TODO | Score and top drivers returned; scenario tests pass | |
-| M-03 | Train ML2 quantile models | F1 | P0 | D-01 | TODO | Model files and `model_card.json` written; `make train` reproducible | |
+| M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
 | M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | TODO | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | Also run on public data if D-02 done |
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | TODO | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | TODO | Backtest shows blend beats prior-only after 2 months; handles gaps | |

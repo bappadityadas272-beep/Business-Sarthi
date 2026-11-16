@@ -28,7 +28,7 @@ You are a coding assistant joining the **Business Sarthi** project. You have no 
 | Frontend | React + TypeScript + Vite + Tailwind CSS, `react-i18next`, Leaflet for maps |
 | Backend | Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2 + Alembic |
 | Database | SQLite for the prototype (file `backend/data/sarthi.db`); keep SQL portable so PostgreSQL works later |
-| ML | pandas, NumPy, scikit-learn, statsmodels, LightGBM (quantile objective), joblib for model files |
+| ML | pandas, NumPy, scikit-learn, statsmodels, LightGBM (Huber P50 + conformal ratio band, DEC-35), joblib for model files |
 | LLM | Hosted API behind a `LLMClient` interface (Gemini or Claude, chosen by env var). The LLM **explains**; it never produces forecast numbers or decisions |
 | RAG | Multilingual sentence embeddings (`intfloat/multilingual-e5-small`) + FAISS (or NumPy cosine) over the scheme knowledge base |
 | Scheduling | APScheduler in-process, plus a dev "advance time" endpoint for demos |

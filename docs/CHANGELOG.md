@@ -2,6 +2,15 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: M-03 ML2 training
+
+- `backend/app/ml/features.py`: one row per shop x month k (k = 1-12, counted from the launch day), the DEC-33 features, monotone vector; shared by training, M-04 and M-05.
+- `backend/app/ml/train.py` (`make train`, DEC-31): seeded 120/40/40 shop split (DEC-32), leaf size by shop-grouped 5-fold CV on training shops (DEC-36), LightGBM Huber P50 with monotone constraints and a ratio band (DEC-35). Writes `backend/data/models/ml2/ml2_p50.joblib`, `split.json`, `model_card.json` (git-ignored; data hash, generator version, params, CV scores, band ratios, metrics, `is_synthetic: true`). `predict_quantiles()` and `load()` are the API for M-04/M-05.
+- Result (40 calibration shops, before conformal): leaf 60 chosen; r10 0.710, r90 1.423; WAPE 0.247; pinball P10/P50/P90 10,763 / 24,731 / 11,136; P10-P90 coverage 68.8% (M-04 must widen it to 75-85%).
+- Path to this design: LightGBM quantile refuses monotone constraints; sklearn HistGB quantile accepted them but broke them in up to 9.7% of steps; 20-row leaves memorised single shops (lines crossed in 24-30% of new-shop rows). Now 0 rule breaks in 90,720 probe checks and the band never crosses.
+- Make: `make` added to `backend/Dockerfile`; root `Makefile` with `synth`, `train`, `test`, `lint`. Two `make train` runs give the same model SHA-256, split and card. Tests: `tests/test_train.py` (5); full suite 42 passed.
+- Next person: M-04 should re-set r10/r90 on the calibration shops and report on the test shops; the band is a fixed share of P50, so check coverage per month k too.
+
 ## 2026-11-16: D-01 review changes (generator v1.1)
 
 - Human review of the 3 sample charts accepted D-01 with changes, all in `data/synthetic/config.yaml`:

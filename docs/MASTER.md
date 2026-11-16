@@ -37,7 +37,7 @@ You are a coding assistant joining the **Business Sarthi** project. You have no 
 | Frontend | React + TypeScript + Vite + Tailwind CSS, `react-i18next`, Leaflet for maps |
 | Backend | Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2 + Alembic |
 | Database | SQLite for the prototype (file `backend/data/sarthi.db`); keep SQL portable so PostgreSQL works later |
-| ML | pandas, NumPy, scikit-learn, statsmodels, LightGBM (quantile objective), joblib for model files |
+| ML | pandas, NumPy, scikit-learn, statsmodels, LightGBM (Huber P50 + conformal ratio band, DEC-35), joblib for model files |
 | LLM | Hosted API behind a `LLMClient` interface (Gemini or Claude, chosen by env var). The LLM **explains**; it never produces forecast numbers or decisions |
 | RAG | Multilingual sentence embeddings (`intfloat/multilingual-e5-small`) + FAISS (or NumPy cosine) over the scheme knowledge base |
 | Scheduling | APScheduler in-process, plus a dev "advance time" endpoint for demos |
@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-03"
+  current_focus: "M-04"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -160,7 +160,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 |---|---|---|---|---|---|---|---|
 | M-01 | OSM client (Overpass + Nominatim), cache table, feature extractor | F2 | P0 | B-04 | TODO | Given a pin, returns counts of competitors, homes, schools, transit; second call hits cache; User-Agent set | Mock responses in tests |
 | M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | TODO | Score and top drivers returned; scenario tests pass | |
-| M-03 | Train ML2 quantile models | F1 | P0 | D-01 | TODO | Model files and `model_card.json` written; `make train` reproducible | |
+| M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
 | M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | TODO | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | Also run on public data if D-02 done |
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | TODO | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | TODO | Backtest shows blend beats prior-only after 2 months; handles gaps | |
@@ -724,7 +724,7 @@ Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
 | ID | Name | Feature | Approach | Priority |
 |---|---|---|---|---|
 | ML1 | Location score | F2 | Transparent weighted scoring over OSM features | P1 |
-| ML2 | Set-up forecast | F1 | LightGBM quantile regression + conformal calibration, trained on synthetic data | P0 |
+| ML2 | Set-up forecast | F1 | LightGBM (Huber loss, monotone) P50 + ratio band + conformal calibration, trained on synthetic data (DEC-35) | P0 |
 | ML3 | Re-forecast | F5 | Shrinkage blend of ML2 prior and shop's own history; ETS for trend and weekly seasonality | P0 |
 | ML4 | Stock advice | F3 | Reorder point from demand mean and variability; dead-stock rule | P0 |
 | ML5 | Review engine | F5 | Indicator calculation + YAML rule table (grow / hold / pivot) | P0 |
@@ -772,7 +772,7 @@ Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
 - **Problem:** before the shop opens, estimate monthly revenue for months 1 to 12 as a range.
 - **Inputs:** shop type, size (sq ft), location features (ML1 inputs), rent, staff, budget, city tier, opening month.
 - **Targets:** monthly revenue in month k (k = 1..12).
-- **Model:** one LightGBM per quantile (alpha 0.1, 0.5, 0.9) with `objective="quantile"`, with month index as a feature. Monotonic constraints where sensible (more competitors never increase revenue).
+- **Model (as built, DEC-35, DEC-36):** one LightGBM P50 model with Huber loss and monotonic constraints (more competitors never increase revenue), month index and calendar month as features; P10 = P50 x r10 and P90 = P50 x r90 from out-of-fold ratios, re-set by conformal calibration (M-04). Leaf size by shop-grouped CV on training shops. *Originally planned: one LightGBM per quantile with `objective="quantile"`; LightGBM does not allow monotonic constraints with that objective.* Budget is not a model input (DEC-33).
 - **Ramp-up:** new shops start below steady state. The training data encodes a ramp curve so month 1 is lower than month 6.
 - **Calibration:** after training, apply split conformal prediction on a calibration set to widen or narrow the P10 to P90 band to hit target coverage.
 - **Derived outputs (plain arithmetic):** gross profit = revenue x blended margin; operating profit = gross profit minus rent, staff and other fixed costs; break-even revenue = fixed costs / margin; payback months = investment / cumulative operating profit, reported as a range from P10 to P90 paths.
@@ -929,6 +929,12 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-28 | 2026-11-16 | Per-shop strength factor, uniform 0.9 to 1.1, one per effect: weekday (scales each multiplier's distance from 1), ramp-up (scales depth 1 - r0 and tau), festival (scales the uplift). Demo shops use 1.0 | Human D-01 review asked for about +/-10% per-shop variation; scaling the effect size keeps weekday order intact | Scale each multiplier independently (weekday order could flip) | ACTIVE |
 | DEC-29 | 2026-11-16 | Festival uplift differs by category (`festival_category` in config): a default profile plus Diwali, Eid and Holi overrides, rescaled so the base-mix-weighted average is 1; assumption | Human D-01 review; for example household and snacks rise more than staples at Diwali | One shared profile only | ACTIVE |
 | DEC-30 | 2026-11-16 | Second demo shop "Sunita General Store" (DEMO-002) in `out/demo/` beside Ramesh: tier 1, 250 sq ft, rent 12,000, 1 staff, EMI 5,000 due on the 10th, performance x1.15, no dip; meant to end in a "grow" review. Measured: sales INR 4.5 / 5.2 / 6.0 lakh and DSCR 7.2 / 9.0 / 11.1 for Aug to Oct 2026, above the 90th percentile of the training shops; the human chose to keep it | Gives D-05 a contrasting grow story | Shrink to a typical tier-2 shop | ACTIVE |
+| DEC-31 | 2026-11-16 | `make` is installed in the backend Docker image and a root `Makefile` provides `synth`, `train`, `test`, `lint`; run as `docker compose run --rm -w /repo backend make train` | M-03's acceptance line uses `make train`; make is not on the host; same command for every teammate with Docker | Install make on each host; drop the Makefile | ACTIVE |
+| DEC-32 | 2026-11-16 | ML2 split by shop, seeded (seed 42): 120 train / 40 calibration / 40 test of the 200 synthetic shops; no shop in two sets; saved as `split.json` | Months of one shop are correlated, so a row split would leak | 140/30/30 | ACTIVE |
+| DEC-33 | 2026-11-16 | ML2 features: size_sqft, homes, schools, transit, banks_atms, competitors, monthly_rent, staff_count, city_tier, open_month, month index k (1-12), calendar month of k; **no budget** (synthetic shops have none and it has no causal effect there; the API still takes it for the investment split); `latent_*` columns never used. Target: revenue per month k, months counted from the launch day | Only observable inputs; calendar month lets festivals show | Add budget to the generator | ACTIVE |
+| DEC-34 | 2026-11-16 | ML2 fixed settings: 300 trees, learning rate 0.05, 15 leaves, seed 42; monotone: competitors -1; homes, schools, transit, banks_atms, size +1; others free. No search except the leaf size (DEC-36) | Simple and reproducible | Full tuning search | ACTIVE |
+| DEC-35 | 2026-11-16 | ML2 model: one LightGBM P50 model with **Huber loss** (delta INR 20,000) and the DEC-34 monotone constraints; P10 = P50 x r10 and P90 = P50 x r90, with r10/r90 the 10th/90th percentile of actual / out-of-fold predicted revenue on the training shops; M-04 re-sets the ratios on the calibration shops (split conformal). Replaces ML_PLAN's "one LightGBM per quantile" | LightGBM refuses monotone constraints with its quantile and L1 objectives; scikit-learn HistGB quantile accepts them but its leaf re-fit breaks them (up to 9.7% of steps). On the 40 calibration shops this option had WAPE 0.244 vs 0.247-0.277 and zero rule breaks. Trade-off: the band width is a fixed share of P50 | sklearn HistGB quantile (rules broken); LightGBM quantile without rules (up to 11% broken); LightGBM L2 mean (worse WAPE) | ACTIVE |
+| DEC-36 | 2026-11-16 | ML2 leaf size (`min_child_samples`) chosen from 20 / 60 / 120 by 5-fold CV grouped by shop **inside the 120 training shops only** (lowest mean pinball of the band; ties to the smaller); the three predictions are sorted per row so P10 <= P50 <= P90 always | With 20-row leaves the trees memorised single shops (12 identical-feature rows each), so the band was too narrow on new shops; choosing on training shops keeps the calibration and test shops untouched | Fixed 20 as first approved; choose on calibration shops (leaks into M-04) | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -940,6 +946,15 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: M-03 ML2 training
+
+- `backend/app/ml/features.py`: one row per shop x month k (k = 1-12, counted from the launch day), the DEC-33 features, monotone vector; shared by training, M-04 and M-05.
+- `backend/app/ml/train.py` (`make train`, DEC-31): seeded 120/40/40 shop split (DEC-32), leaf size by shop-grouped 5-fold CV on training shops (DEC-36), LightGBM Huber P50 with monotone constraints and a ratio band (DEC-35). Writes `backend/data/models/ml2/ml2_p50.joblib`, `split.json`, `model_card.json` (git-ignored; data hash, generator version, params, CV scores, band ratios, metrics, `is_synthetic: true`). `predict_quantiles()` and `load()` are the API for M-04/M-05.
+- Result (40 calibration shops, before conformal): leaf 60 chosen; r10 0.710, r90 1.423; WAPE 0.247; pinball P10/P50/P90 10,763 / 24,731 / 11,136; P10-P90 coverage 68.8% (M-04 must widen it to 75-85%).
+- Path to this design: LightGBM quantile refuses monotone constraints; sklearn HistGB quantile accepted them but broke them in up to 9.7% of steps; 20-row leaves memorised single shops (lines crossed in 24-30% of new-shop rows). Now 0 rule breaks in 90,720 probe checks and the band never crosses.
+- Make: `make` added to `backend/Dockerfile`; root `Makefile` with `synth`, `train`, `test`, `lint`. Two `make train` runs give the same model SHA-256, split and card. Tests: `tests/test_train.py` (5); full suite 42 passed.
+- Next person: M-04 should re-set r10/r90 on the calibration shops and report on the test shops; the band is a fixed share of P50, so check coverage per month k too.
 
 ## 2026-11-16: D-01 review changes (generator v1.1)
 

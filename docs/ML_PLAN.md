@@ -7,7 +7,7 @@
 | ID | Name | Feature | Approach | Priority |
 |---|---|---|---|---|
 | ML1 | Location score | F2 | Transparent weighted scoring over OSM features | P1 |
-| ML2 | Set-up forecast | F1 | LightGBM quantile regression + conformal calibration, trained on synthetic data | P0 |
+| ML2 | Set-up forecast | F1 | LightGBM (Huber loss, monotone) P50 + ratio band + conformal calibration, trained on synthetic data (DEC-35) | P0 |
 | ML3 | Re-forecast | F5 | Shrinkage blend of ML2 prior and shop's own history; ETS for trend and weekly seasonality | P0 |
 | ML4 | Stock advice | F3 | Reorder point from demand mean and variability; dead-stock rule | P0 |
 | ML5 | Review engine | F5 | Indicator calculation + YAML rule table (grow / hold / pivot) | P0 |
@@ -55,7 +55,7 @@
 - **Problem:** before the shop opens, estimate monthly revenue for months 1 to 12 as a range.
 - **Inputs:** shop type, size (sq ft), location features (ML1 inputs), rent, staff, budget, city tier, opening month.
 - **Targets:** monthly revenue in month k (k = 1..12).
-- **Model:** one LightGBM per quantile (alpha 0.1, 0.5, 0.9) with `objective="quantile"`, with month index as a feature. Monotonic constraints where sensible (more competitors never increase revenue).
+- **Model (as built, DEC-35, DEC-36):** one LightGBM P50 model with Huber loss and monotonic constraints (more competitors never increase revenue), month index and calendar month as features; P10 = P50 x r10 and P90 = P50 x r90 from out-of-fold ratios, re-set by conformal calibration (M-04). Leaf size by shop-grouped CV on training shops. *Originally planned: one LightGBM per quantile with `objective="quantile"`; LightGBM does not allow monotonic constraints with that objective.* Budget is not a model input (DEC-33).
 - **Ramp-up:** new shops start below steady state. The training data encodes a ramp curve so month 1 is lower than month 6.
 - **Calibration:** after training, apply split conformal prediction on a calibration set to widen or narrow the P10 to P90 band to hit target coverage.
 - **Derived outputs (plain arithmetic):** gross profit = revenue x blended margin; operating profit = gross profit minus rent, staff and other fixed costs; break-even revenue = fixed costs / margin; payback months = investment / cumulative operating profit, reported as a range from P10 to P90 paths.
