@@ -118,6 +118,17 @@ def _sha256(*paths: Path) -> str:
     return h.hexdigest()
 
 
+STAT_FEATURES = ("size_sqft", "homes", "schools", "transit", "banks_atms", "competitors", "monthly_rent",
+                 "staff_count")
+
+
+def feature_stats(train_shops: pd.DataFrame) -> dict:
+    """Min, median and max of each shop-level input over the TRAINING shops. Used to flag inputs outside the
+    range the model has seen, and as the labelled fallback when OSM is unreachable (DEC-45)."""
+    return {c: {"min": float(train_shops[c].min()), "median": float(train_shops[c].median()),
+                "max": float(train_shops[c].max())} for c in STAT_FEATURES}
+
+
 def train(data_dir: Path = DATA_DIR, out: Path = MODEL_DIR, seed: int = 42) -> dict:
     meta = json.loads((data_dir / "metadata.json").read_text(encoding="utf-8"))
     if meta.get("is_synthetic") is not True:
@@ -149,6 +160,7 @@ def train(data_dir: Path = DATA_DIR, out: Path = MODEL_DIR, seed: int = 42) -> d
                  "rows": len(table), "shops": {k: len(v) for k, v in split.items()}},
         "target": f"{TARGET} (INR per month k, months counted from the launch day)", "horizon_months": HORIZON,
         "features": FEATURES, "monotone": MONOTONE,
+        "feature_stats": feature_stats(shops[shops["shop_id"].isin(split["train"])]),
         "estimator": "lightgbm.LGBMRegressor (P50)",
         "params": {**PARAMS, "min_child_samples": leaf, "random_state": seed},
         "leaf_cv": {"grid": list(LEAF_GRID), "folds": CV_FOLDS, "grouped_by": "shop_id", "on": "train shops only",

@@ -1,0 +1,58 @@
+{
+  "_note": "MOCK Overpass answer used when OSM_MODE=mock. Hand-made numbers, not a real place. One count element per feature in the order competitors, homes, schools, transit, banks_atms.",
+  "is_mock": true,
+  "version": 0.6,
+  "generator": "hand-made mock (not from Overpass)",
+  "elements": [
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "4"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "120"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "2"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "4"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "2"
+      }
+    }
+  ]
+}

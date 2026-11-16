@@ -120,6 +120,32 @@ class AlertRules(_Header):
     rules: AlertRuleSet
 
 
+# ---- osm_tags.yaml ----
+class TagFilter(_Strict):
+    key: str = Field(pattern=r"^[a-z_:]+$")
+    values: list[str] = Field(min_length=1)
+
+    @field_validator("values")
+    @classmethod
+    def _plain_values(cls, v):
+        if any(not x.replace("_", "").isalnum() for x in v):      # values go into an Overpass regex
+            raise ValueError("tag values must be plain words")
+        return v
+
+
+class OsmTags(_Header):
+    radius_m: int = Field(gt=0, le=2000)
+    cache_days: int = Field(gt=0)
+    cell_decimals: int = Field(ge=2, le=5)
+    features: dict[Literal["competitors", "homes", "schools", "transit", "banks_atms"], list[TagFilter]]
+
+    @model_validator(mode="after")
+    def _all_features(self):
+        if len(self.features) != 5 or any(not v for v in self.features.values()):
+            raise ValueError("need tag filters for all 5 features")
+        return self
+
+
 # ---- blend.yaml ----
 class Blend(_Header):
     k: float = Field(gt=0)
@@ -284,6 +310,7 @@ FILES: dict[str, type[_Header]] = {
     "location_weights.yaml": LocationWeights,
     "product_mix.yaml": ProductMix,
     "expansion.yaml": Expansion,
+    "osm_tags.yaml": OsmTags,
 }
 
 
@@ -296,6 +323,7 @@ class Rules(_Strict):
     product_mix: ProductMix
     expansion: Expansion
     investment: InvestmentSplit
+    osm: OsmTags
 
 
 def load_file(path: Path, model: type[_Header]) -> _Header:
@@ -314,7 +342,7 @@ def load_rules(rules_dir: Path = RULES_DIR) -> Rules:
         review=f["review_rules.yaml"], alerts=f["alert_rules.yaml"], blend=f["blend.yaml"],
         actions=f["actions.yaml"], location=f["location_weights.yaml"],
         product_mix=f["product_mix.yaml"], expansion=f["expansion.yaml"],
-        investment=f["investment_split.yaml"],
+        investment=f["investment_split.yaml"], osm=f["osm_tags.yaml"],
     )
 
 

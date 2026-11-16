@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-01"
+  current_focus: "M-05"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -158,7 +158,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| M-01 | OSM client (Overpass + Nominatim), cache table, feature extractor | F2 | P0 | B-04 | TODO | Given a pin, returns counts of competitors, homes, schools, transit; second call hits cache; User-Agent set | Mock responses in tests |
+| M-01 | OSM client (Overpass + Nominatim), cache table, feature extractor | F2 | P0 | B-04 | DONE | Given a pin, returns counts of competitors, homes, schools, transit; second call hits cache; User-Agent set | Mock responses in tests; live Overpass format NOT verified (server busy 2026-11-16), see CHANGELOG |
 | M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | TODO | Score and top drivers returned; scenario tests pass | |
 | M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
 | M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | DONE | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | SYNTHETIC, 200 test shops: WAPE 0.197 vs peer median 0.313 (37% lower); coverage 80.5%; 0 monotone breaks. First run on 200 shops missed coverage (94.0%), data grown to 1,000 shops (DEC-39); see EVAL_REPORT. Public-data run waits for D-02 |
@@ -587,7 +587,7 @@ erDiagram
     }
 ```
 
-Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, cost, price, reorder_point)`, `stock_move(item_id, day, qty, kind)`, `asset(shop_id, name, cost, bought_on)`, `chat_message(shop_id, role, text, sources_json, created_at)`, `notification(user_id, kind, payload_json, read)`.
+Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, cost, price, reorder_point)`, `stock_move(item_id, day, qty, kind)`, `asset(shop_id, name, cost, bought_on)`, `chat_message(shop_id, role, text, sources_json, created_at)`, `notification(user_id, kind, payload_json, read)`, `osm_cache(cell, radius_m, tags_version, counts, fetched_at)` (no personal data; M-01).
 
 ## 8. API list (v1)
 
@@ -653,7 +653,8 @@ Business-Sarthi/
   data/
     synthetic/          generate.py, config.yaml
     kb/                 schemes.json (verified flags), sources.md
-    rules/              review_rules.yaml, alert_rules.yaml
+    rules/              review_rules.yaml, alert_rules.yaml, osm_tags.yaml, ...
+    osm_mock/           hand-made mock OSM answers (OSM_MODE=mock)
   eval/                 forecast_eval.py, chat_eval.jsonl, chat_eval.py
   .env.example
   Makefile
@@ -670,6 +671,7 @@ LLM_API_KEY=
 EMBED_MODEL=intfloat/multilingual-e5-small
 OVERPASS_URL=https://overpass-api.de/api/interpreter
 NOMINATIM_URL=https://nominatim.openstreetmap.org
+OSM_MODE=mock
 APP_USER_AGENT=BusinessSarthi/0.1 (contact: team email)
 ```
 
@@ -681,7 +683,7 @@ APP_USER_AGENT=BusinessSarthi/0.1 (contact: team email)
 - **Voice:** browser Web Speech API for speech to text where supported, with text fallback. Text to speech optional (P2).
 - **Offline tolerance:** daily entries are queued in `localStorage` and synced when online.
 - **Time travel for demo:** `POST /api/dev/advance-time` shifts the "current date" used by jobs and runs due reviews, so a 3-month review can be shown in seconds.
-- **Caching:** Overpass responses cached in SQLite for 30 days per rounded (lat, lon) cell. Respect Overpass and Nominatim usage policies (identify with a User-Agent, at most about 1 request per second for Nominatim, no bulk geocoding).
+- **Caching:** Overpass responses cached in SQLite for 30 days per rounded (lat, lon) cell (3 decimals, DEC-46). `OSM_MODE=mock` (default) uses labelled fixtures and no network (DEC-47); a failed live call falls back to labelled typical counts (DEC-45). Respect Overpass and Nominatim usage policies (identify with a User-Agent, at most about 1 request per second for Nominatim, no bulk geocoding).
 - **Attribution:** show "Map data from OpenStreetMap contributors (ODbL)" wherever OSM-derived data or maps appear.
 - **Privacy (DPDP Act 2023 aligned, not legal advice):** purpose-specific consent, data minimisation (phone number only, no Aadhaar or PAN), withdraw and delete endpoints, no real data in the prototype. Get a legal review before any real pilot.
 - **Error handling:** every ML endpoint returns a `confidence` field (`low` when there are fewer than 30 days of data) and the UI shows it.
@@ -945,6 +947,10 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-41 | 2026-11-16 | Login token: JWT, HS256, signed with `JWT_SECRET`, valid **7 days**, no refresh token; the built-in default secret is refused when `DEV_MODE` is off | Simple for a prototype; chosen by the human | 24 hours; 30 days | ACTIVE |
 | DEC-42 | 2026-11-16 | `shop` table gains `name`, `size_sqft` and `city_tier` (migration 0002). The owner types the name and size and picks tier 1, 2 or 3; the API requires all three (30 to 5,000 sq ft). Amends ARCHITECTURE section 7 | ML2 needs size and city tier (DEC-33) and the table had neither; nothing is guessed from the pin; chosen by the human | Derive tier from the pin with a city list (source not verified); send size and tier with every forecast request | ACTIVE |
 | DEC-43 | 2026-11-16 | Consent purposes: `shop_data` (**required**: store the shop's data and use it for this owner's forecasts, reviews and alerts) and `benchmarking` (optional: anonymised peer comparison later; **no feature uses it yet**). Without an active `shop_data` consent every shop write or computation returns 403 `consent_required`. Withdrawing keeps the history row (`withdrawn_at`), blocks new writes, and leaves stored data until delete-my-data (B-11) | AGENTS rule 5 (consent first), purpose-specific consent; chosen by the human | A single purpose | ACTIVE |
+| DEC-44 | 2026-11-16 | OSM tags per location feature (`data/rules/osm_tags.yaml`, radius 500 m): competitors = shop convenience, general, grocery, supermarket, kiosk; homes = building residential, apartments, house, detached, terrace; schools = amenity school, kindergarten, college; transit = bus stops, bus stations, marketplaces, railway stations; banks = amenity bank, atm. Labelled an assumption; `homes` may undercount where buildings are unmapped | ML_PLAN names the features but not the tags; chosen by the human | Narrow competitors (no supermarkets or kiosks); count untagged buildings as homes | ACTIVE |
+| DEC-45 | 2026-11-16 | If live Overpass fails and the cell is not cached, use the **median counts of the synthetic training shops** (from `feature_stats` in the ML2 model card), label the result `fallback_assumed`, never cache it, and force forecast confidence to `low` with the reason | The demo must not dead-end, and nothing assumed is shown as measured; chosen by the human | Return 503; make the owner type the counts | ACTIVE |
+| DEC-46 | 2026-11-16 | OSM cache cell = lat/lon rounded to 3 decimals (about 110 m); the query is centred on the cell centre; rows are keyed on cell, radius and tag-list version and kept 30 days | ARCHITECTURE section 11 gives 30 days but no cell size; chosen by the human | 4 decimals (about 11 m, far more Overpass calls) | ACTIVE |
+| DEC-47 | 2026-11-16 | `OSM_MODE=mock` is the default: answers come from hand-made fixtures in `data/osm_mock/` (labelled `is_mock`, source `mock`, not real places) and no network is used; `OSM_MODE=live` calls real Overpass and Nominatim | The demo works offline and respects the public servers; chosen by the human | Live by default | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -956,6 +962,15 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: M-01 OSM client with cache and mock answers
+
+- `backend/app/services/osm.py`: `location_counts(db, lat, lon)` returns counts of competitors, homes, schools, transit and banks/ATMs within 500 m, with a `source` of `live`, `cache`, `mock` or `fallback_assumed` (only the first two are measured OSM data and carry the ODbL attribution). `search_place(query)` is the Nominatim search, throttled to one request per second. Every request sends the app User-Agent.
+- New table `osm_cache` (migration `0003`), new rule file `data/rules/osm_tags.yaml` (validated by `app/rules.py`), new setting `OSM_MODE` (default `mock`), fixtures in `data/osm_mock/`. Decisions DEC-44 to DEC-47.
+- `app/ml/train.py` now writes `feature_stats` (min, median, max of each shop-level input over the training shops) into the model card; the model itself is unchanged. **Run `make train` once** so the card has it.
+- Tests: `tests/test_osm.py` (17), all against `httpx.MockTransport`; no test uses the network.
+- **Not verified:** the live Overpass answer format for `out count;` (one `count` element per statement with `tags.total`) is written from the Overpass documentation as remembered. Two live test calls on 2026-11-16 were refused by the public server (at capacity), so live mode has **not** been run end to end. TODO: run one live query with `OSM_MODE=live` and confirm before relying on it; a wrong format degrades to `fallback_assumed`, not to wrong counts.
+- No API endpoint yet: `location-score` is M-02 and the forecast (M-05) calls the client directly.
 
 ## 2026-11-16: B-03 profile and consent, B-04 shops
 

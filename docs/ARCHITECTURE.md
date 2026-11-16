@@ -221,7 +221,7 @@ erDiagram
     }
 ```
 
-Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, cost, price, reorder_point)`, `stock_move(item_id, day, qty, kind)`, `asset(shop_id, name, cost, bought_on)`, `chat_message(shop_id, role, text, sources_json, created_at)`, `notification(user_id, kind, payload_json, read)`.
+Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, cost, price, reorder_point)`, `stock_move(item_id, day, qty, kind)`, `asset(shop_id, name, cost, bought_on)`, `chat_message(shop_id, role, text, sources_json, created_at)`, `notification(user_id, kind, payload_json, read)`, `osm_cache(cell, radius_m, tags_version, counts, fetched_at)` (no personal data; M-01).
 
 ## 8. API list (v1)
 
@@ -287,7 +287,8 @@ Business-Sarthi/
   data/
     synthetic/          generate.py, config.yaml
     kb/                 schemes.json (verified flags), sources.md
-    rules/              review_rules.yaml, alert_rules.yaml
+    rules/              review_rules.yaml, alert_rules.yaml, osm_tags.yaml, ...
+    osm_mock/           hand-made mock OSM answers (OSM_MODE=mock)
   eval/                 forecast_eval.py, chat_eval.jsonl, chat_eval.py
   .env.example
   Makefile
@@ -304,6 +305,7 @@ LLM_API_KEY=
 EMBED_MODEL=intfloat/multilingual-e5-small
 OVERPASS_URL=https://overpass-api.de/api/interpreter
 NOMINATIM_URL=https://nominatim.openstreetmap.org
+OSM_MODE=mock
 APP_USER_AGENT=BusinessSarthi/0.1 (contact: team email)
 ```
 
@@ -315,7 +317,7 @@ APP_USER_AGENT=BusinessSarthi/0.1 (contact: team email)
 - **Voice:** browser Web Speech API for speech to text where supported, with text fallback. Text to speech optional (P2).
 - **Offline tolerance:** daily entries are queued in `localStorage` and synced when online.
 - **Time travel for demo:** `POST /api/dev/advance-time` shifts the "current date" used by jobs and runs due reviews, so a 3-month review can be shown in seconds.
-- **Caching:** Overpass responses cached in SQLite for 30 days per rounded (lat, lon) cell. Respect Overpass and Nominatim usage policies (identify with a User-Agent, at most about 1 request per second for Nominatim, no bulk geocoding).
+- **Caching:** Overpass responses cached in SQLite for 30 days per rounded (lat, lon) cell (3 decimals, DEC-46). `OSM_MODE=mock` (default) uses labelled fixtures and no network (DEC-47); a failed live call falls back to labelled typical counts (DEC-45). Respect Overpass and Nominatim usage policies (identify with a User-Agent, at most about 1 request per second for Nominatim, no bulk geocoding).
 - **Attribution:** show "Map data from OpenStreetMap contributors (ODbL)" wherever OSM-derived data or maps appear.
 - **Privacy (DPDP Act 2023 aligned, not legal advice):** purpose-specific consent, data minimisation (phone number only, no Aadhaar or PAN), withdraw and delete endpoints, no real data in the prototype. Get a legal review before any real pilot.
 - **Error handling:** every ML endpoint returns a `confidence` field (`low` when there are fewer than 30 days of data) and the UI shows it.

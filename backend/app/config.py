@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     overpass_url: str = "https://overpass-api.de/api/interpreter"
     nominatim_url: str = "https://nominatim.openstreetmap.org"
     app_user_agent: str = "BusinessSarthi/0.1 (prototype)"
+    osm_mode: Literal["mock", "live"] = "mock"       # DEC-47: mock answers by default, no network
 
 
 @lru_cache

@@ -166,7 +166,19 @@ class Notification(Base):
     read: Mapped[bool] = mapped_column(default=False)
 
 
+class OsmCache(Base):
+    """Overpass answers per rounded cell, kept 30 days (M-01). Holds no personal data."""
+    __tablename__ = "osm_cache"
+    __table_args__ = (UniqueConstraint("cell", "radius_m", "tags_version", name="uq_osm_cache_cell"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cell: Mapped[str] = mapped_column(String(32))           # "lat,lon" rounded (data/rules/osm_tags.yaml)
+    radius_m: Mapped[int]
+    tags_version: Mapped[int]
+    counts: Mapped[dict] = mapped_column(JSON)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 EXPECTED_TABLES = {
     "user", "consent", "shop", "daily_log", "forecast", "review", "loan", "alert",
-    "stock_item", "stock_move", "asset", "chat_message", "notification",
+    "stock_item", "stock_move", "asset", "chat_message", "notification", "osm_cache",
 }

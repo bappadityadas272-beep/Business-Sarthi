@@ -1,0 +1,23 @@
+# M-01: which OpenStreetMap tags count as each location feature (ML_PLAN section 3 names the features, not the tags).
+# THE TAG LISTS ARE AN ASSUMPTION chosen by the team on 2026-11-16 (DEC-44). OSM coverage in India is uneven:
+# residential buildings in particular are often unmapped, so `homes` can be an undercount.
+# Changing the lists changes the counts: bump `version` (the cache is keyed on it) and log it in DECISIONS.md.
+version: 1
+source: "proposed; approved 2026-11-16 (DEC-44, DEC-46)"
+assumption: true
+radius_m: 500          # ML_PLAN section 3
+cache_days: 30         # ARCHITECTURE section 11
+cell_decimals: 3       # cache cell = lat/lon rounded to 3 decimals, about 110 m (DEC-46)
+features:
+  competitors:
+    - {key: shop, values: [convenience, general, grocery, supermarket, kiosk]}
+  homes:
+    - {key: building, values: [residential, apartments, house, detached, terrace]}
+  schools:
+    - {key: amenity, values: [school, kindergarten, college]}
+  transit:
+    - {key: highway, values: [bus_stop]}
+    - {key: amenity, values: [bus_station, marketplace]}
+    - {key: railway, values: [station]}
+  banks_atms:
+    - {key: amenity, values: [bank, atm]}

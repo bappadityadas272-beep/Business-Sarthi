@@ -2,6 +2,15 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: M-01 OSM client with cache and mock answers
+
+- `backend/app/services/osm.py`: `location_counts(db, lat, lon)` returns counts of competitors, homes, schools, transit and banks/ATMs within 500 m, with a `source` of `live`, `cache`, `mock` or `fallback_assumed` (only the first two are measured OSM data and carry the ODbL attribution). `search_place(query)` is the Nominatim search, throttled to one request per second. Every request sends the app User-Agent.
+- New table `osm_cache` (migration `0003`), new rule file `data/rules/osm_tags.yaml` (validated by `app/rules.py`), new setting `OSM_MODE` (default `mock`), fixtures in `data/osm_mock/`. Decisions DEC-44 to DEC-47.
+- `app/ml/train.py` now writes `feature_stats` (min, median, max of each shop-level input over the training shops) into the model card; the model itself is unchanged. **Run `make train` once** so the card has it.
+- Tests: `tests/test_osm.py` (17), all against `httpx.MockTransport`; no test uses the network.
+- **Not verified:** the live Overpass answer format for `out count;` (one `count` element per statement with `tags.total`) is written from the Overpass documentation as remembered. Two live test calls on 2026-11-16 were refused by the public server (at capacity), so live mode has **not** been run end to end. TODO: run one live query with `OSM_MODE=live` and confirm before relying on it; a wrong format degrades to `fallback_assumed`, not to wrong counts.
+- No API endpoint yet: `location-score` is M-02 and the forecast (M-05) calls the client directly.
+
 ## 2026-11-16: B-03 profile and consent, B-04 shops
 
 - Built and committed together because B-03's acceptance test ("shop creation refused (403) without consent") needs the B-04 endpoint.

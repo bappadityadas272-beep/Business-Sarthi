@@ -1,0 +1,16 @@
+{
+  "_note": "MOCK Nominatim answer used when OSM_MODE=mock. Hand-made, coordinates are approximate city centres.",
+  "is_mock": true,
+  "results": [
+    {
+      "display_name": "Mock result: New Delhi, Delhi, India",
+      "lat": 28.61,
+      "lon": 77.21
+    },
+    {
+      "display_name": "Mock result: Gurugram, Haryana, India",
+      "lat": 28.46,
+      "lon": 77.03
+    }
+  ]
+}
