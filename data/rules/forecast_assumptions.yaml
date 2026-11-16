@@ -1,0 +1,18 @@
+# M-05 set-up forecast: figures the service needs for a shop that has not opened yet (DEC-48 to DEC-52).
+# EVERY VALUE IS AN ASSUMPTION and is returned with the forecast, labelled as such. None comes from real shops.
+version: 1
+source: "midpoints of the synthetic generator config (data/synthetic/config.yaml); approved 2026-11-16 (DEC-48)"
+assumption: true
+# Blended gross margin = sum over categories of (base category mix x midpoint of the margin range):
+#   0.38 x 0.10 + 0.18 x 0.08 + 0.20 x 0.185 + 0.13 x 0.15 + 0.11 x 0.175 = 0.12815 -> 0.128
+gross_margin: 0.128
+staff_wage_monthly: 10000        # INR per person; midpoint of the synthetic range 8,000 to 12,000
+other_fixed_costs_monthly: 0     # fixed costs = rent + staff only (DEC-48)
+# Payback (DEC-49): the model covers 12 months. Later months are assumed to earn the mean operating profit of
+# months `payback_steady_from_month`..12; payback is reported up to `payback_max_months`, else "not within".
+payback_steady_from_month: 7
+payback_max_months: 60
+# Drivers (DEC-52): only these inputs may be shown as reasons. Rent and staff count are model inputs but in the
+# synthetic data rent is derived from size and city, so showing it as a "reason" would mislead.
+drivers_top: 3
+driver_features: [homes, schools, transit, banks_atms, competitors, size_sqft, city_tier]

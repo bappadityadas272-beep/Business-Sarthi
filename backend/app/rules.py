@@ -300,6 +300,18 @@ class InvestmentSplit(_Header):
         return v
 
 
+# ---- forecast_assumptions.yaml ----
+class ForecastAssumptions(_Header):
+    gross_margin: float = Field(gt=0, lt=1)
+    staff_wage_monthly: float = Field(ge=0)
+    other_fixed_costs_monthly: float = Field(ge=0)
+    payback_steady_from_month: int = Field(ge=1, le=12)
+    payback_max_months: int = Field(ge=12, le=120)
+    drivers_top: int = Field(ge=1, le=5)
+    driver_features: list[Literal["homes", "schools", "transit", "banks_atms", "competitors", "size_sqft",
+                                  "city_tier", "monthly_rent", "staff_count"]] = Field(min_length=1)
+
+
 # ---- bundle ----
 FILES: dict[str, type[_Header]] = {
     "investment_split.yaml": InvestmentSplit,
@@ -311,6 +323,7 @@ FILES: dict[str, type[_Header]] = {
     "product_mix.yaml": ProductMix,
     "expansion.yaml": Expansion,
     "osm_tags.yaml": OsmTags,
+    "forecast_assumptions.yaml": ForecastAssumptions,
 }
 
 
@@ -324,6 +337,7 @@ class Rules(_Strict):
     expansion: Expansion
     investment: InvestmentSplit
     osm: OsmTags
+    forecast: ForecastAssumptions
 
 
 def load_file(path: Path, model: type[_Header]) -> _Header:
@@ -343,6 +357,7 @@ def load_rules(rules_dir: Path = RULES_DIR) -> Rules:
         actions=f["actions.yaml"], location=f["location_weights.yaml"],
         product_mix=f["product_mix.yaml"], expansion=f["expansion.yaml"],
         investment=f["investment_split.yaml"], osm=f["osm_tags.yaml"],
+        forecast=f["forecast_assumptions.yaml"],
     )
 
 

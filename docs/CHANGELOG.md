@@ -2,6 +2,22 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: M-05 set-up forecast service and endpoint
+
+- **Checkpoint:** M-05 DONE.
+- `POST /api/shops/{id}/forecast` (login, `shop_data` consent, own shop). Returns P10/P50/P90 revenue for 12 months with gross
+  and operating profit, break-even revenue, payback range (fastest/typical/slowest), investment split (DEC-22, with
+  `budget_too_low` and shortfall), up to 3 drivers (message key, params, English text), confidence with reason keys, the
+  location counts and their source, and the assumptions used. Stores a `forecasts` row (`kind=setup`).
+- New: `backend/app/ml/forecast.py` (pure functions), `backend/app/api/forecast.py`, `backend/app/schemas/forecast.py`,
+  `backend/app/services/clock.py` (app clock, for the later advance-time endpoint), `data/rules/forecast_assumptions.yaml`.
+- Decisions DEC-48 to DEC-52. Margin, wage and the payback extension are **assumptions**, labelled in the response.
+- 503 `model_not_ready` if the ML2 files are missing (run `make train`); 503 `location_data_unavailable` if OSM and its
+  fallback both fail.
+- Tests: `tests/test_forecast.py` (15: hand-calculated payback, split, break-even; small trained model; endpoint). Suite 107 passed.
+- **Next person:** with the default `OSM_MODE=mock` every forecast has confidence `low` by design. Tests share a
+  session-scoped small model (`model_small` in `conftest.py`).
+
 ## 2026-11-16: M-01 OSM client with cache and mock answers
 
 - `backend/app/services/osm.py`: `location_counts(db, lat, lon)` returns counts of competitors, homes, schools, transit and banks/ATMs within 500 m, with a `source` of `live`, `cache`, `mock` or `fallback_assumed` (only the first two are measured OSM data and carry the ODbL attribution). `search_place(query)` is the Nominatim search, throttled to one request per second. Every request sends the app User-Agent.

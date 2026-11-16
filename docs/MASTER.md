@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-05"
+  current_focus: "B-05 daily logs"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -162,7 +162,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | TODO | Score and top drivers returned; scenario tests pass | |
 | M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
 | M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | DONE | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | SYNTHETIC, 200 test shops: WAPE 0.197 vs peer median 0.313 (37% lower); coverage 80.5%; 0 monotone breaks. First run on 200 shops missed coverage (94.0%), data grown to 1,000 shops (DEC-39); see EVAL_REPORT. Public-data run waits for D-02 |
-| M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | TODO | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | |
+| M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | DONE | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | Endpoint + service; margin, wage and payback extension are labelled assumptions (DEC-48 to DEC-52); confidence low under mock OSM by design |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | TODO | Backtest shows blend beats prior-only after 2 months; handles gaps | |
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | TODO | ROP, reorder qty, dead and overstock flags match hand-calculated cases | |
 | M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | TODO | 20 labelled scenarios all give the expected decision | |
@@ -951,6 +951,11 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-45 | 2026-11-16 | If live Overpass fails and the cell is not cached, use the **median counts of the synthetic training shops** (from `feature_stats` in the ML2 model card), label the result `fallback_assumed`, never cache it, and force forecast confidence to `low` with the reason | The demo must not dead-end, and nothing assumed is shown as measured; chosen by the human | Return 503; make the owner type the counts | ACTIVE |
 | DEC-46 | 2026-11-16 | OSM cache cell = lat/lon rounded to 3 decimals (about 110 m); the query is centred on the cell centre; rows are keyed on cell, radius and tag-list version and kept 30 days | ARCHITECTURE section 11 gives 30 days but no cell size; chosen by the human | 4 decimals (about 11 m, far more Overpass calls) | ACTIVE |
 | DEC-47 | 2026-11-16 | `OSM_MODE=mock` is the default: answers come from hand-made fixtures in `data/osm_mock/` (labelled `is_mock`, source `mock`, not real places) and no network is used; `OSM_MODE=live` calls real Overpass and Nominatim | The demo works offline and respects the public servers; chosen by the human | Live by default | ACTIVE |
+| DEC-48 | 2026-11-16 | Set-up forecast cost assumptions live in `data/rules/forecast_assumptions.yaml`: gross margin 12.8% (base category mix x midpoint margins of the synthetic config), staff wage INR 10,000 per person per month, fixed costs = rent + staff only. All returned with the forecast and labelled as assumptions | No real shop cost data exists; chosen by the human | Ask the owner for margin and wages; add an allowance for other fixed costs | ACTIVE |
+| DEC-49 | 2026-11-16 | Payback: the model covers 12 months; later months are assumed to earn the mean operating profit of months 7 to 12; payback is reported per P10, P50 and P90 path up to 60 months, else "not within 60 months" | A range is needed even when payback is past the horizon; chosen by the human | Report only within 12 months; extrapolate the trend | ACTIVE |
+| DEC-50 | 2026-11-16 | Set-up forecast confidence is never above `medium` (the model has only seen synthetic shops). It is `low`, with reason keys, when location counts are mock or assumed, or an input is outside the range of the training shops | Honesty about data (AGENTS rule 1); chosen by the human | Allow `high` | ACTIVE |
+| DEC-51 | 2026-11-16 | Opening date for the forecast = request `open_date`, else the shop's `launch_date`, else the first day of next month; the response states which was used | The month affects seasonality; chosen by the human | Require the date | ACTIVE |
+| DEC-52 | 2026-11-16 | Forecast drivers are the top 3 LightGBM contributions among location counts, shop size and city tier only. Rent and staff count are never shown as reasons | In the synthetic data rent follows size and city, so it would mislead; chosen by the human | Show any model input | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -962,6 +967,22 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: M-05 set-up forecast service and endpoint
+
+- **Checkpoint:** M-05 DONE.
+- `POST /api/shops/{id}/forecast` (login, `shop_data` consent, own shop). Returns P10/P50/P90 revenue for 12 months with gross
+  and operating profit, break-even revenue, payback range (fastest/typical/slowest), investment split (DEC-22, with
+  `budget_too_low` and shortfall), up to 3 drivers (message key, params, English text), confidence with reason keys, the
+  location counts and their source, and the assumptions used. Stores a `forecasts` row (`kind=setup`).
+- New: `backend/app/ml/forecast.py` (pure functions), `backend/app/api/forecast.py`, `backend/app/schemas/forecast.py`,
+  `backend/app/services/clock.py` (app clock, for the later advance-time endpoint), `data/rules/forecast_assumptions.yaml`.
+- Decisions DEC-48 to DEC-52. Margin, wage and the payback extension are **assumptions**, labelled in the response.
+- 503 `model_not_ready` if the ML2 files are missing (run `make train`); 503 `location_data_unavailable` if OSM and its
+  fallback both fail.
+- Tests: `tests/test_forecast.py` (15: hand-calculated payback, split, break-even; small trained model; endpoint). Suite 107 passed.
+- **Next person:** with the default `OSM_MODE=mock` every forecast has confidence `low` by design. Tests share a
+  session-scoped small model (`model_small` in `conftest.py`).
 
 ## 2026-11-16: M-01 OSM client with cache and mock answers
 
