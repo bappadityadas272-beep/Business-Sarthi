@@ -2,6 +2,19 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: B-05, B-06, B-07 daily logs, stock and assets, loans with EMI schedule
+
+- **Checkpoints:** B-05, B-06, B-07 DONE.
+- `POST /api/shops/{id}/logs` (bulk; same shop, day and category updates, never duplicates) and `GET .../logs?from&to`
+  (both ends included, with per-day totals). A day never sent stays missing: it is not stored as zero.
+- `GET/POST /api/shops/{id}/stock`, `POST .../stock/moves` (bulk, all or nothing), `GET/POST .../assets`. On-hand is never
+  stored; it is always the sum of the moves.
+- `GET/POST /api/shops/{id}/loans` with next due date, days to it, instalments left and the remaining schedule
+  (`app/services/loans.py`). Migration `0004` adds `loan.start_date` and `loan.tenure_months` (DEC-53).
+- Reads need ownership; writes need ownership and `shop_data` consent. All dates use the app clock (`services/clock.py`).
+- Tests: `tests/test_records.py` (11, including hand-calculated due dates across month ends and a leap year).
+- **Next person:** DEC-54 lists input defaults the assistant took without asking; the human still has to confirm them.
+
 ## 2026-11-16: M-05 set-up forecast service and endpoint
 
 - **Checkpoint:** M-05 DONE.

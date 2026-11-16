@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "B-05 daily logs"
+  current_focus: "M-06 re-forecast"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -146,9 +146,9 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | B-02 | Mock OTP auth + JWT | all | P0 | B-01 | DONE | Request and verify OTP returns JWT; wrong OTP is rejected; protected route needs token | OTP printed to server log in DEV_MODE and returned as dev_otp (DEC-40); JWT 7 days (DEC-41) |
 | B-03 | Profile, language, consent endpoints | all | P0 | B-02 | DONE | Shop creation refused (403) without consent record | Purposes shop_data (required) and benchmarking (optional), DEC-43 |
 | B-04 | Shops create and read | F1 | P0 | B-03 | DONE | Owner can create and read only own shops | Adds name, size_sqft, city_tier (DEC-42); other owners get 404 |
-| B-05 | Daily logs bulk create and range read | F3,F5 | P0 | B-04 | TODO | Duplicate (shop, day, category) updates not duplicates; range query correct | |
-| B-06 | Stock items, moves and assets | F3 | P0 | B-04 | TODO | On-hand stock equals sum of moves | |
-| B-07 | Loans and EMI schedule | F6 | P0 | B-04 | TODO | Next due date computed correctly across month ends | |
+| B-05 | Daily logs bulk create and range read | F3,F5 | P0 | B-04 | DONE | Duplicate (shop, day, category) updates not duplicates; range query correct | Upsert on (shop, day, category); range read with daily totals; missing days stay missing |
+| B-06 | Stock items, moves and assets | F3 | P0 | B-04 | DONE | On-hand stock equals sum of moves | On-hand = sum of moves (never stored); bulk moves all-or-nothing; input defaults in DEC-54 await confirmation |
+| B-07 | Loans and EMI schedule | F6 | P0 | B-04 | DONE | Next due date computed correctly across month ends | start_date + tenure_months (DEC-53, migration 0004); schedule is dates and EMI only |
 | B-08 | Alerts store, resolve, notifications | F6 | P0 | B-04 | TODO | Alert create, list, resolve works; notifications unread count | |
 | B-09 | APScheduler jobs and `POST /api/dev/advance-time` | F5,F6 | P0 | B-05, M-08, M-09 | TODO | Advancing 90 days triggers a review and stores it | Only when `DEV_MODE=1` |
 | B-10 | SOS summary endpoint | F6 | P1 | B-08 | TODO | Returns a shareable summary of alerts and EMI status | |
@@ -956,6 +956,8 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-50 | 2026-11-16 | Set-up forecast confidence is never above `medium` (the model has only seen synthetic shops). It is `low`, with reason keys, when location counts are mock or assumed, or an input is outside the range of the training shops | Honesty about data (AGENTS rule 1); chosen by the human | Allow `high` | ACTIVE |
 | DEC-51 | 2026-11-16 | Opening date for the forecast = request `open_date`, else the shop's `launch_date`, else the first day of next month; the response states which was used | The month affects seasonality; chosen by the human | Require the date | ACTIVE |
 | DEC-52 | 2026-11-16 | Forecast drivers are the top 3 LightGBM contributions among location counts, shop size and city tier only. Rent and staff count are never shown as reasons | In the synthetic data rent follows size and city, so it would mislead; chosen by the human | Show any model input | ACTIVE |
+| DEC-53 | 2026-11-16 | Loans gain `start_date` and `tenure_months` (migration 0004). The schedule lists one instalment per month on `due_day` (a due day past the month end falls on the last day of that month); the first instalment is the first due date strictly after the start date. Dates and the fixed EMI only: no interest or balance maths, and payments are not tracked ("due so far" is by date) | Alerts and reviews need the next due date and instalments left; chosen by the human (first-instalment rule is the assistant's default, to be confirmed) | Keep only principal, EMI and due day; full amortisation table | ACTIVE |
+| DEC-54 | 2026-11-16 | Input defaults for daily logs and stock, **taken by the assistant and to be confirmed by the human**: categories are the five synthetic ones plus `other`; days after the app's today are rejected; amounts cannot be negative; saving the same (shop, day, category) replaces the figures; stock moves send a positive quantity for purchase, sale and waste (sale and waste stored negative) and a signed one for `adjust`; on-hand may go below zero (late entries) and is not blocked; item names are unique per shop ignoring case | Simplest reading of the B-05 and B-06 acceptance lines | Free-text categories; block sales above on-hand | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -967,6 +969,19 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: B-05, B-06, B-07 daily logs, stock and assets, loans with EMI schedule
+
+- **Checkpoints:** B-05, B-06, B-07 DONE.
+- `POST /api/shops/{id}/logs` (bulk; same shop, day and category updates, never duplicates) and `GET .../logs?from&to`
+  (both ends included, with per-day totals). A day never sent stays missing: it is not stored as zero.
+- `GET/POST /api/shops/{id}/stock`, `POST .../stock/moves` (bulk, all or nothing), `GET/POST .../assets`. On-hand is never
+  stored; it is always the sum of the moves.
+- `GET/POST /api/shops/{id}/loans` with next due date, days to it, instalments left and the remaining schedule
+  (`app/services/loans.py`). Migration `0004` adds `loan.start_date` and `loan.tenure_months` (DEC-53).
+- Reads need ownership; writes need ownership and `shop_data` consent. All dates use the app clock (`services/clock.py`).
+- Tests: `tests/test_records.py` (11, including hand-calculated due dates across month ends and a leap year).
+- **Next person:** DEC-54 lists input defaults the assistant took without asking; the human still has to confirm them.
 
 ## 2026-11-16: M-05 set-up forecast service and endpoint
 

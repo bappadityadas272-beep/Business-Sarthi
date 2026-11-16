@@ -103,6 +103,8 @@ class Loan(Base):
     principal: Mapped[float] = mapped_column(Float)
     emi: Mapped[float] = mapped_column(Float)
     due_day: Mapped[int] = mapped_column(Integer)
+    start_date: Mapped[date | None] = mapped_column(Date)           # DEC-53
+    tenure_months: Mapped[int | None] = mapped_column(Integer)      # DEC-53: number of monthly instalments
 
 
 class Alert(Base):

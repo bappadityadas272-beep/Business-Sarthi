@@ -6,7 +6,7 @@
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "B-05 daily logs"
+  current_focus: "M-06 re-forecast"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -46,9 +46,9 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | B-02 | Mock OTP auth + JWT | all | P0 | B-01 | DONE | Request and verify OTP returns JWT; wrong OTP is rejected; protected route needs token | OTP printed to server log in DEV_MODE and returned as dev_otp (DEC-40); JWT 7 days (DEC-41) |
 | B-03 | Profile, language, consent endpoints | all | P0 | B-02 | DONE | Shop creation refused (403) without consent record | Purposes shop_data (required) and benchmarking (optional), DEC-43 |
 | B-04 | Shops create and read | F1 | P0 | B-03 | DONE | Owner can create and read only own shops | Adds name, size_sqft, city_tier (DEC-42); other owners get 404 |
-| B-05 | Daily logs bulk create and range read | F3,F5 | P0 | B-04 | TODO | Duplicate (shop, day, category) updates not duplicates; range query correct | |
-| B-06 | Stock items, moves and assets | F3 | P0 | B-04 | TODO | On-hand stock equals sum of moves | |
-| B-07 | Loans and EMI schedule | F6 | P0 | B-04 | TODO | Next due date computed correctly across month ends | |
+| B-05 | Daily logs bulk create and range read | F3,F5 | P0 | B-04 | DONE | Duplicate (shop, day, category) updates not duplicates; range query correct | Upsert on (shop, day, category); range read with daily totals; missing days stay missing |
+| B-06 | Stock items, moves and assets | F3 | P0 | B-04 | DONE | On-hand stock equals sum of moves | On-hand = sum of moves (never stored); bulk moves all-or-nothing; input defaults in DEC-54 await confirmation |
+| B-07 | Loans and EMI schedule | F6 | P0 | B-04 | DONE | Next due date computed correctly across month ends | start_date + tenure_months (DEC-53, migration 0004); schedule is dates and EMI only |
 | B-08 | Alerts store, resolve, notifications | F6 | P0 | B-04 | TODO | Alert create, list, resolve works; notifications unread count | |
 | B-09 | APScheduler jobs and `POST /api/dev/advance-time` | F5,F6 | P0 | B-05, M-08, M-09 | TODO | Advancing 90 days triggers a review and stores it | Only when `DEV_MODE=1` |
 | B-10 | SOS summary endpoint | F6 | P1 | B-08 | TODO | Returns a shareable summary of alerts and EMI status | |
