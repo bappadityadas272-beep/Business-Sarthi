@@ -1,0 +1,21 @@
+# ML9 expansion simulator (ML_PLAN section 11). Monte Carlo over re-forecast uncertainty.
+# Uplift = share of current monthly revenue, drawn from a triangular(low, mode, high) distribution.
+# Costs in INR. ALL RANGES ARE PROPOSED ASSUMPTIONS and must be shown as such in the UI.
+version: 1
+source: "proposed; options from ML_PLAN section 11"
+assumption: true
+draws: 1000
+payback_target_months: 12
+options:
+  add_product_line:
+    uplift: {low: 0.03, mode: 0.05, high: 0.10}
+    one_time_cost: {low: 15000, high: 40000}
+    monthly_cost: {low: 0, high: 0}
+  extend_hours:
+    uplift: {low: 0.05, mode: 0.08, high: 0.12}
+    one_time_cost: {low: 0, high: 0}
+    monthly_cost: {low: 3000, high: 6000}
+  second_counter:
+    uplift: {low: 0.10, mode: 0.15, high: 0.25}
+    one_time_cost: {low: 50000, high: 120000}
+    monthly_cost: {low: 8000, high: 12000}

@@ -1,0 +1,24 @@
+# ML5 review decision table (ML_PLAN section 7). First matching decision wins, top to bottom.
+# Thresholds are initial assumptions, to tune with pilot data. Log every change in docs/DECISIONS.md.
+version: 1
+source: "ML_PLAN section 7"
+assumption: true
+window_days: 90
+max_actions: 3
+decisions:
+  - decision: pivot
+    match: any            # any condition triggers
+    conditions:
+      - {indicator: dscr, op: "<", value: 1.0, for_months: 2}
+      - {indicator: revenue_vs_p50, op: "<", value: 0.6}
+      - {indicator: cash_runway_days, op: "<", value: 30}
+  - decision: grow
+    match: all            # every condition must hold
+    conditions:
+      - {indicator: revenue_vs_p50, op: ">=", value: 1.0}
+      - {indicator: dscr, op: ">=", value: 1.5}
+      - {indicator: growth_rate, op: ">", value: 0}
+      - {indicator: data_completeness, op: ">=", value: 0.7}
+  - decision: hold
+    match: always         # everything else
+    conditions: []

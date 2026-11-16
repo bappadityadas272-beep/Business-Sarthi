@@ -1,0 +1,31 @@
+# Starter product mix (ML_PLAN section 3): share of opening stock budget by category.
+# Base shares per shop type, then nudges by nearby profile (shares are re-normalised to 1).
+# ALL VALUES ARE PROPOSED ASSUMPTIONS except the school example, which comes from ML_PLAN.
+version: 1
+source: "proposed; school example from ML_PLAN section 3"
+assumption: true
+categories: [staples, dairy, snacks_beverages, household, personal_care]
+shop_types:
+  kirana:
+    base:
+      staples: 0.40
+      dairy: 0.15
+      snacks_beverages: 0.20
+      household: 0.15
+      personal_care: 0.10
+    profiles:
+      near_schools:          # schools within radius >= min_count
+        feature: schools
+        min_count: 2
+        adjust: {snacks_beverages: 0.05, staples: -0.05}
+        suggest_items: [stationery, chocolates, packaged snacks]
+      near_transit:
+        feature: transit
+        min_count: 4
+        adjust: {snacks_beverages: 0.05, household: -0.05}
+        suggest_items: [bottled water, tea and biscuits]
+      dense_residential:
+        feature: residential
+        min_count: 150
+        adjust: {staples: 0.05, household: 0.03, snacks_beverages: -0.08}
+        suggest_items: [atta, rice, cooking oil, detergent]

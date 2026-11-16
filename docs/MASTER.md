@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "D-04"
+  current_focus: "D-01"
   blockers: []
   demo_path_ready: false
   notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
@@ -135,7 +135,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | TODO | Generates 200 shops x 24 months; two runs with same seed are identical; every file has `is_synthetic` metadata | |
 | D-02 | Pick and **licence-check** one public retail dataset; document in `data/PUBLIC_DATA.md` (name, URL, licence, date checked) | F1 | P1 | S-01 | TODO | Licence permits our use, or dataset replaced | Do not commit the raw data if the licence forbids |
 | D-03 | Scheme KB v0: 5 to 8 entries from official pages, `verified:false`, with source URL and `last_verified` | F4 | P1 | S-01 | TODO | JSON validates against schema; every entry has a source URL | Human verification is R-04 |
-| D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | TODO | Loader validates every file with Pydantic | Values copied from ML_PLAN |
+| D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | DONE | Loader validates every file with Pydantic | Loader `app/rules.py`; 8th file `investment_split.yaml` added (DEC-22); drafted values approved as assumptions (DEC-21) |
 | D-05 | Demo seed: Ramesh Kirana with 3 months of logs, a dip month and an EMI squeeze | all | P0 | D-01, B-01 | TODO | `make seed` creates the demo user and shop; demo script step 4 works | |
 
 ## B: Backend
@@ -919,6 +919,8 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-18 | 2026-11-16 | Backend runs on Python 3.14 in `backend/.venv`; `requires-python >=3.11` | 3.14 is installed on the dev machine; 3.11+ stays supported for teammates | Install 3.12 | SUPERSEDED by DEC-20 |
 | DEC-19 | 2026-11-16 | Dependencies: pip + venv with exact `==` pins in `backend/pyproject.toml` | No extra tooling needed | uv, Poetry | ACTIVE |
 | DEC-20 | 2026-11-16 | Backend dev, tests and scripts run in Docker (`python:3.14-slim`, `docker-compose.yml`), not a Windows venv | Windows Smart App Control blocked the compiled DLLs of numpy, pandas, SQLAlchemy, scikit-learn and LightGBM; Linux containers are not affected, and the security setting stays on | Pin older wheels, turn off Smart App Control (cannot be re-enabled), WSL distro | ACTIVE |
+| DEC-21 | 2026-11-16 | Rule values ML_PLAN left unspecified (location weights and caps, kirana product mix, expansion ranges, 5 extra review actions) use the drafted values in `data/rules/`, flagged `assumption: true` | ML_PLAN names the features and options but gives no numbers; approved by the human so M-02, M-05 and M-10 are not blocked | Leave unset and block D-04 | ACTIVE |
+| DEC-22 | 2026-11-16 | Investment split in `data/rules/investment_split.yaml`: deposit = 3 x monthly rent, reserve = 3 months of fixed costs, remainder 65% stock / 35% fixtures; flag "budget too low" if deposit + reserve exceed the budget | F8 planner (M-05) needs it and no doc specified it; assumption | Defer to M-05 | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -930,6 +932,13 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: D-04 rule files and validated loader
+
+- `data/rules/`: `review_rules.yaml`, `alert_rules.yaml`, `blend.yaml` (values from ML_PLAN sections 5 to 7), plus `actions.yaml`, `location_weights.yaml`, `product_mix.yaml`, `expansion.yaml` and a new `investment_split.yaml` (drafted values, approved, DEC-21 and DEC-22). Every file has `version`, `source` and `assumption: true`.
+- `backend/app/rules.py`: strict Pydantic models (extra keys forbidden, weights must sum to 1, mix adjustments must net to 0, review table must end with the `hold` fallback, and so on). `load_rules()` / `get_rules()`; `python -m app.rules` prints a validation summary.
+- Tests `tests/test_rules.py`: all files valid, plus 13 deliberately broken files that must be rejected with the file name.
+- Next person: tune values only with a new DECISIONS row; the UI must label these numbers as assumptions.
 
 ## 2026-11-16: B-01 SQLAlchemy models and Alembic migration
 

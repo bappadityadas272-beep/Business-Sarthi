@@ -1,0 +1,47 @@
+# Review actions (ML_PLAN section 7). The review engine returns up to review_rules.max_actions of these,
+# in priority order, when the decision matches and the trigger holds.
+# The first three come from ML_PLAN; the rest are PROPOSED ASSUMPTIONS awaiting team approval.
+version: 1
+source: "ML_PLAN section 7 (first 3); rest proposed"
+assumption: true
+actions:
+  - id: reduce_slow_stock
+    message_key: action.reduce_slow_stock
+    decisions: [hold, pivot]
+    trigger: {indicator: dead_stock_value, op: ">", value: 0}
+    priority: 1
+  - id: check_working_capital_scheme
+    message_key: action.check_working_capital_scheme
+    decisions: [hold, pivot]
+    trigger: {indicator: dscr, op: "<", value: 1.2}
+    priority: 2
+  - id: extend_hours
+    message_key: action.extend_hours
+    decisions: [grow, hold]
+    trigger: {indicator: revenue_vs_p50, op: "<", value: 1.1}
+    priority: 3
+  - id: cut_fixed_costs
+    message_key: action.cut_fixed_costs
+    decisions: [pivot]
+    trigger: {indicator: revenue_vs_p50, op: "<", value: 0.8}
+    priority: 1
+  - id: talk_to_lender_about_emi
+    message_key: action.talk_to_lender_about_emi
+    decisions: [pivot]
+    trigger: {indicator: dscr, op: "<", value: 1.0}
+    priority: 1
+  - id: restock_fast_movers
+    message_key: action.restock_fast_movers
+    decisions: [grow, hold, pivot]
+    trigger: {indicator: stockout_days, op: ">", value: 3}
+    priority: 2
+  - id: log_daily
+    message_key: action.log_daily
+    decisions: [grow, hold, pivot]
+    trigger: {indicator: data_completeness, op: "<", value: 0.7}
+    priority: 1
+  - id: try_expansion_simulator
+    message_key: action.try_expansion_simulator
+    decisions: [grow]
+    trigger: {indicator: growth_rate, op: ">", value: 0}
+    priority: 2

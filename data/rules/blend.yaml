@@ -1,0 +1,9 @@
+# ML3 re-forecast shrinkage blend (ML_PLAN section 5).
+# Weight on the shop's own model: w = n_days / (n_days + k).
+version: 1
+source: "ML_PLAN section 5"
+assumption: true
+k: 60
+level_only_below_days: 28        # fewer than 28 days of history: level-only model
+low_confidence_missing_share: 0.30   # more than 30% of days missing: confidence = low
+low_confidence_below_days: 30    # ARCHITECTURE section 11: fewer than 30 days of data = low confidence

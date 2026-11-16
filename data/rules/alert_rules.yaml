@@ -1,0 +1,29 @@
+# ML6 alert rules (ML_PLAN sections 6 and 7). Message keys are localised in the frontend.
+version: 1
+source: "ML_PLAN sections 6-7"
+assumption: true
+rules:
+  sales_dip:
+    severity: warn
+    message_key: alert.sales_dip
+    short_window_days: 7
+    long_window_days: 28
+    ratio_below: 0.70          # 7-day sales below 70% of trailing 28-day average
+    robust_z_below: -2.0       # and robust z-score below -2
+  low_stock:
+    severity: warn
+    message_key: alert.low_stock
+    at_or_below_reorder_point: true
+  emi_due:
+    severity: critical
+    message_key: alert.emi_due
+    days_before_due: 5         # EMI due within 5 days
+    projected_cash_below_emi: true
+  dead_stock:
+    severity: info
+    message_key: alert.dead_stock
+    no_sale_days: 30           # no sale in 30 days and on-hand above 0 (ML_PLAN section 6)
+  data_gap:
+    severity: info
+    message_key: alert.data_gap
+    no_log_days: 3

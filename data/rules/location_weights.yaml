@@ -1,0 +1,18 @@
+# ML1 location score (ML_PLAN section 3): score = 100 * clip(sum(w_i * normalise(feature_i)), 0, 1)
+# normalise(x) = min(x / cap, 1). Positive weights sum to 1.0.
+# Competitors: the first `free_count` are neutral (they signal demand); beyond that the penalty grows
+# until it saturates at `cap` extra competitors.
+# ALL WEIGHTS AND CAPS ARE PROPOSED ASSUMPTIONS (ML_PLAN gives the features but no values).
+version: 1
+source: "proposed; features from ML_PLAN section 3"
+assumption: true
+radius_m: 500
+features:
+  residential:   {weight: 0.40, cap: 300}   # residential buildings / apartments
+  schools:       {weight: 0.20, cap: 5}
+  transit:       {weight: 0.25, cap: 10}    # bus stops and markets
+  banks_atms:    {weight: 0.15, cap: 5}
+competitors:
+  weight: -0.30
+  free_count: 2
+  cap: 10

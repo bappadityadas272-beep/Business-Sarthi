@@ -1,0 +1,14 @@
+# F8 investment planner (used by M-05). Splits the owner's budget:
+#   deposit  = deposit_months_rent x monthly rent
+#   reserve  = reserve_months_fixed_costs x monthly fixed costs (fixed costs computed by M-05)
+#   the remainder is split between stock and fixtures by remainder_split.
+# If deposit + reserve exceed the budget, M-05 must flag "budget too low" instead of splitting.
+# PROPOSED ASSUMPTION approved by the team on 2026-11-16 (DEC-22).
+version: 1
+source: "proposed; approved 2026-11-16"
+assumption: true
+deposit_months_rent: 3
+reserve_months_fixed_costs: 3
+remainder_split:
+  stock: 0.65
+  fixtures: 0.35
