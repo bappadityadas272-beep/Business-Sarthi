@@ -2,6 +2,20 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: M-09 alert engine (ML6) with evaluation on injected dips
+
+- **Checkpoint:** M-09 DONE. On synthetic test shops: recall 95.3% on injected dips of 35% or deeper within 14 days
+  (632 dips), 0 false alarms in about 3,970 shop-months. Target **met on synthetic data**; see the honest notes in
+  `docs/EVAL_REPORT.md`, section "ML6 alerts" (zero false alarms reflects the clean generator, not real shops).
+- `backend/app/ml/alerts.py`: pure functions `sales_dip`, `low_stock`, `dead_stock`, `emi_due`, `data_gap`, `evaluate`.
+  An alert is `{kind, severity, message_key, params}`; numbers travel only in `params`, never in text.
+- `app/rules.py`: loading fails if `alert_rules.yaml` and `stock.yaml` disagree on the dead-stock day count.
+- `eval/alert_eval.py` (`make eval-alerts`, about a minute) and `eval/alert_notes.md`.
+- Tests: `tests/test_alerts.py` (17), thresholds tested exactly on the boundary.
+- **Not done here:** the engine is not yet called from the API. Storing and resolving alerts is B-08, the daily job
+  B-09. The EMI alert needs opening cash (M-08) and stays silent without it (DEC-62).
+- **Next person:** DEC-63 lists details the assistant chose; the human has not yet confirmed them.
+
 ## 2026-11-17: M-07 stock advice (ML4) with simulation
 
 - **Checkpoint:** M-07 DONE. Acceptance (hand-calculated cases) passes. ML4 target **met on synthetic shops only after

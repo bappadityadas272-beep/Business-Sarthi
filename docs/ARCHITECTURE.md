@@ -290,7 +290,7 @@ Business-Sarthi/
     kb/                 schemes.json (verified flags), sources.md
     rules/              review_rules.yaml, alert_rules.yaml, osm_tags.yaml, ...
     osm_mock/           hand-made mock OSM answers (OSM_MODE=mock)
-  eval/                 forecast_eval.py, reforecast_eval.py, stock_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
+  eval/                 forecast_eval.py, reforecast_eval.py, stock_eval.py, alert_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
   .env.example
   Makefile
 ```

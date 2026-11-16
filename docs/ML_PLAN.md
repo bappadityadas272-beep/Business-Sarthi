@@ -112,7 +112,7 @@
 
 Each decision returns the top reasons (the indicator values that triggered it), up to 3 actions from `data/rules/actions.yaml` (for example "reduce slow stock", "check scheme eligibility for a working-capital loan", "consider extending hours"), and a `confidence` value.
 
-**Alerts** (`data/rules/alert_rules.yaml`): sales dip (7-day sales below 70 percent of trailing 28-day average, with robust z-score below -2), low stock (item at or under ROP), EMI due in 5 days with projected cash below EMI, dead stock threshold, data gap (no log for 3 days). Alerts carry `severity` (info, warn, critical) and a message key for localisation.
+**Alerts** (`data/rules/alert_rules.yaml`): sales dip (7-day sales below 70 percent of trailing 28-day average, with robust z-score below -2), low stock (item at or under ROP), EMI due in 5 days with projected cash below EMI, dead stock threshold, data gap (no log for 3 days). Alerts carry `severity` (info, warn, critical) and a message key for localisation. Exact definitions (finished days only, robust z on daily totals, minimum logged days, no EMI alert when cash is unknown) are in `backend/app/ml/alerts.py` and DEC-61 to DEC-63.
 
 **Why rules, not a learned classifier:** no labelled outcomes exist; rules are auditable and match how an advisor would explain a decision. Revisit once pilot outcomes exist.
 

@@ -384,6 +384,10 @@ def load_file(path: Path, model: type[_Header]) -> _Header:
 
 def load_rules(rules_dir: Path = RULES_DIR) -> Rules:
     f = {name: load_file(rules_dir / name, model) for name, model in FILES.items()}
+    dead_alert, dead_stock = f["alert_rules.yaml"].rules.dead_stock.no_sale_days, f["stock.yaml"].dead_no_sale_days
+    if dead_alert != dead_stock:                                   # one definition of dead stock (M-07, M-09)
+        raise RuleFileError(f"alert_rules.yaml: dead_stock.no_sale_days ({dead_alert}) differs from stock.yaml "
+                            f"dead_no_sale_days ({dead_stock})")
     return Rules(
         review=f["review_rules.yaml"], alerts=f["alert_rules.yaml"], blend=f["blend.yaml"],
         stock=f["stock.yaml"],

@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-09 alert engine"
+  current_focus: "M-08 review engine"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -166,7 +166,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | DONE | Backtest shows blend beats prior-only after 2 months; handles gaps | Met on synthetic shops: blend WAPE 8.8% vs prior-only 19.5% at 2 months (k = 10, DEC-55). Honest notes in EVAL_REPORT |
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | DONE | ROP, reorder qty, dead and overstock flags match hand-calculated cases | Hand-calculated cases pass (17 tests). Simulation on synthetic shops: 4.05 vs 9.57 stock-out days per 30 at 0.95x stock, met only after DEC-59 (first version 1.44x, missed) |
 | M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | TODO | 20 labelled scenarios all give the expected decision | |
-| M-09 | Alert engine (ML6) | F6 | P0 | B-05, B-07, M-07, D-04 | TODO | Injected dips detected (recall at least 90%); false alarms under 1 per shop per month | |
+| M-09 | Alert engine (ML6) | F6 | P0 | B-05, B-07, M-07, D-04 | DONE | Injected dips detected (recall at least 90%); false alarms under 1 per shop per month | Synthetic test shops: recall 95.3% on dips of 35% or deeper within 14 days, 0 false alarms (clean generator; see EVAL_REPORT notes). 17 tests. Not yet wired to the API (B-08, B-09) |
 | M-10 | Expansion simulator (ML9) | F8 | P2 | M-06 | TODO | Returns payback range and P(payback<12m) for 3 options | Assumptions flagged in output |
 | M-11 | Pricing helper (ML10) | F9 | P2 | B-06 | TODO | Flags categories below target margin | |
 
@@ -656,7 +656,7 @@ Business-Sarthi/
     kb/                 schemes.json (verified flags), sources.md
     rules/              review_rules.yaml, alert_rules.yaml, osm_tags.yaml, ...
     osm_mock/           hand-made mock OSM answers (OSM_MODE=mock)
-  eval/                 forecast_eval.py, reforecast_eval.py, stock_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
+  eval/                 forecast_eval.py, reforecast_eval.py, stock_eval.py, alert_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
   .env.example
   Makefile
 ```
@@ -835,7 +835,7 @@ Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
 
 Each decision returns the top reasons (the indicator values that triggered it), up to 3 actions from `data/rules/actions.yaml` (for example "reduce slow stock", "check scheme eligibility for a working-capital loan", "consider extending hours"), and a `confidence` value.
 
-**Alerts** (`data/rules/alert_rules.yaml`): sales dip (7-day sales below 70 percent of trailing 28-day average, with robust z-score below -2), low stock (item at or under ROP), EMI due in 5 days with projected cash below EMI, dead stock threshold, data gap (no log for 3 days). Alerts carry `severity` (info, warn, critical) and a message key for localisation.
+**Alerts** (`data/rules/alert_rules.yaml`): sales dip (7-day sales below 70 percent of trailing 28-day average, with robust z-score below -2), low stock (item at or under ROP), EMI due in 5 days with projected cash below EMI, dead stock threshold, data gap (no log for 3 days). Alerts carry `severity` (info, warn, critical) and a message key for localisation. Exact definitions (finished days only, robust z on daily totals, minimum logged days, no EMI alert when cash is unknown) are in `backend/app/ml/alerts.py` and DEC-61 to DEC-63.
 
 **Why rules, not a learned classifier:** no labelled outcomes exist; rules are auditable and match how an advisor would explain a decision. Revisit once pilot outcomes exist.
 
@@ -965,6 +965,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-58 | 2026-11-16 | Stock advice definitions chosen by the human: ABC = A top 20% of items by revenue, B the next 30%, C the rest (an item with no sales is always C); ABC revenue is summed over the last 90 days; a **stock-out day** is a day on which at least one active item (sold in the last 30 days) ended with zero or less on hand, counted over the last 90 days; in the simulation the `reorder when empty` baseline orders the same 7 days of demand with the same lead time | ML_PLAN section 6 defines only class A and no stock-out measure; the baseline must differ only in when it orders | A or other only; 30-day or all-history ABC window; only A items or item-days for stock-outs; a 14-day baseline order | ACTIVE |
 | DEC-59 | 2026-11-17 | Days on which an item ended at zero are left out of its demand estimate (`ignore_empty_shelf_days: true` in `data/rules/stock.yaml`), in the API and in the simulation | With such days counted as low-sales days the rule missed the ML4 stock limit (1.44x the baseline's average stock against a limit of 1.25x). The human chose this correction when shown the result; no threshold was changed and both variants stay in `docs/EVAL_REPORT.md` | Keep the estimate and report the target as not met; change the target | ACTIVE |
 | DEC-60 | 2026-11-17 | Stock advice details **taken by the assistant and to be confirmed by the human**: reorder is due when on hand is at or below the reorder point; a dead item is never on the reorder list; an item that never sold is dead once it has been on the shelf for 30 days; overstock is not flagged for a dead item; demand uses finished days only (up to yesterday) while on hand includes today; the reorder list is ordered A, B, C and then by least cover; a new item with no other item in its category gets no advice (`demand_source: none`); the advice endpoint needs the `shop_data` consent; the half-life is `similar stock` when within 10% | Needed to make ML_PLAN section 6 computable; each is the simplest reading | Strictly below the reorder point; include today's sales in demand | ACTIVE |
+| DEC-61 | 2026-11-17 | ML6 evaluation, chosen by the human: the 90% recall target is judged on injected dips of 35% or deeper; a dip counts as detected when the alert holds on at least one of its first 14 days; recall on milder dips (25% to 35%) is reported but not judged | The rule fires below 70% of the base, so a 30% dip is a coin flip by design; an alert that comes late is of little use | Judge on all dips from 25%; judge from 30%; count an alert at any time during the dip | ACTIVE |
+| DEC-62 | 2026-11-17 | No EMI alert when cash is unknown (the owner never entered an opening cash figure), chosen by the human | A critical alert must not rest on a guess; same treatment as the cash rule of the review | An info reminder that an EMI is due, without a cash claim | ACTIVE |
+| DEC-63 | 2026-11-17 | Alert engine details **taken by the assistant and to be confirmed by the human**: all rules use finished days only (up to yesterday); robust z = (median of the last 7 days - median of the 28 base days) / (1.4826 x MAD of the base days), on daily shop totals; a day without a log is missing, not zero; the dip rule needs 4 logged days of 7 and 14 of 28; low stock and dead stock are one alert per shop each, listing up to 5 items and the count; projected cash = cash today + days to the due date x average daily net flow of the last 28 logged days; instalments due in the same window are added up; the data gap counts from the launch date when nothing was ever logged; in the evaluation one false alarm is one unbroken run of alert days; the loader refuses rule files in which the two dead-stock day counts differ | ML_PLAN section 7 names the rules but not these details; each is the simplest reading | z on 7-day averages; one alert per item; current cash without projection | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -976,6 +979,20 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: M-09 alert engine (ML6) with evaluation on injected dips
+
+- **Checkpoint:** M-09 DONE. On synthetic test shops: recall 95.3% on injected dips of 35% or deeper within 14 days
+  (632 dips), 0 false alarms in about 3,970 shop-months. Target **met on synthetic data**; see the honest notes in
+  `docs/EVAL_REPORT.md`, section "ML6 alerts" (zero false alarms reflects the clean generator, not real shops).
+- `backend/app/ml/alerts.py`: pure functions `sales_dip`, `low_stock`, `dead_stock`, `emi_due`, `data_gap`, `evaluate`.
+  An alert is `{kind, severity, message_key, params}`; numbers travel only in `params`, never in text.
+- `app/rules.py`: loading fails if `alert_rules.yaml` and `stock.yaml` disagree on the dead-stock day count.
+- `eval/alert_eval.py` (`make eval-alerts`, about a minute) and `eval/alert_notes.md`.
+- Tests: `tests/test_alerts.py` (17), thresholds tested exactly on the boundary.
+- **Not done here:** the engine is not yet called from the API. Storing and resolving alerts is B-08, the daily job
+  B-09. The EMI alert needs opening cash (M-08) and stays silent without it (DEC-62).
+- **Next person:** DEC-63 lists details the assistant chose; the human has not yet confirmed them.
 
 ## 2026-11-17: M-07 stock advice (ML4) with simulation
 
