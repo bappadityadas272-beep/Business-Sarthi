@@ -239,7 +239,8 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `GET /api/shops/{id}/stock/advice` | Reorder list and dead stock | M |
 | `GET/POST /api/shops/{id}/assets` | Asset list | B |
 | `GET/POST /api/shops/{id}/loans` | Loan and EMI | B |
-| `GET /api/shops/{id}/alerts`, `POST .../alerts/{id}/resolve` | Alerts | B |
+| `GET /api/shops/{id}/alerts?status=open\|all`, `POST .../alerts/refresh`, `POST .../alerts/{id}/resolve` (optional `mute`) | Alerts: read, run the rules now, resolve (DEC-67) | B |
+| `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all` | Notifications with unread count | B |
 | `PATCH /api/shops/{id}` | Set or clear `opening_cash` (DEC-65) | B |
 | `POST /api/shops/{id}/reviews/run` | Run review now (also scheduler) | M |
 | `GET /api/shops/{id}/reviews/latest` and `/reviews` | Read reviews | M |

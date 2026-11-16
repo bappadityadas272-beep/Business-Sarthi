@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "B-08 alerts store"
+  current_focus: "B-09 scheduler and advance-time"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -149,7 +149,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | B-05 | Daily logs bulk create and range read | F3,F5 | P0 | B-04 | DONE | Duplicate (shop, day, category) updates not duplicates; range query correct | Upsert on (shop, day, category); range read with daily totals; missing days stay missing |
 | B-06 | Stock items, moves and assets | F3 | P0 | B-04 | DONE | On-hand stock equals sum of moves | On-hand = sum of moves (never stored); bulk moves all-or-nothing; input defaults in DEC-54 await confirmation |
 | B-07 | Loans and EMI schedule | F6 | P0 | B-04 | DONE | Next due date computed correctly across month ends | start_date + tenure_months (DEC-53, migration 0004); schedule is dates and EMI only |
-| B-08 | Alerts store, resolve, notifications | F6 | P0 | B-04 | TODO | Alert create, list, resolve works; notifications unread count | |
+| B-08 | Alerts store, resolve, notifications | F6 | P0 | B-04 | DONE | Alert create, list, resolve works; notifications unread count | Alert create, list, resolve (with mute) and notifications unread count work; 6 tests. Refresh is on request until B-09 adds the daily job. DEC-68 details await confirmation |
 | B-09 | APScheduler jobs and `POST /api/dev/advance-time` | F5,F6 | P0 | B-05, M-08, M-09 | TODO | Advancing 90 days triggers a review and stores it | Only when `DEV_MODE=1` |
 | B-10 | SOS summary endpoint | F6 | P1 | B-08 | TODO | Returns a shareable summary of alerts and EMI status | |
 | B-11 | Delete-my-data endpoint | all | P1 | B-04 | TODO | After delete, no rows remain for the user | |
@@ -605,7 +605,8 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `GET /api/shops/{id}/stock/advice` | Reorder list and dead stock | M |
 | `GET/POST /api/shops/{id}/assets` | Asset list | B |
 | `GET/POST /api/shops/{id}/loans` | Loan and EMI | B |
-| `GET /api/shops/{id}/alerts`, `POST .../alerts/{id}/resolve` | Alerts | B |
+| `GET /api/shops/{id}/alerts?status=open\|all`, `POST .../alerts/refresh`, `POST .../alerts/{id}/resolve` (optional `mute`) | Alerts: read, run the rules now, resolve (DEC-67) | B |
+| `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all` | Notifications with unread count | B |
 | `PATCH /api/shops/{id}` | Set or clear `opening_cash` (DEC-65) | B |
 | `POST /api/shops/{id}/reviews/run` | Run review now (also scheduler) | M |
 | `GET /api/shops/{id}/reviews/latest` and `/reviews` | Read reviews | M |
@@ -974,6 +975,8 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-64 | 2026-11-17 | Review engine, chosen by the human: (a) "dscr < 1.0 for 2 months" means the two most recent 30-day blocks of the 90-day period are both below 1.0; (b) a shop without a loan can grow: the dscr condition counts as met for grow (`pass_when_no_loan: true` in `review_rules.yaml`) and cannot trigger pivot, and the review carries the note `no_loan_dscr_not_applicable`; (c) operating profit = logged sales - logged purchases - logged expenses, nothing is added from the shop profile, so the owner logs rent and wages as expenses | One bad month must not trigger a pivot; a debt-free shop should not be blocked by a ratio that does not exist; counting only logged costs avoids double counting | Any 2 of 3 blocks; no grow without a loan; add rent from the profile | ACTIVE |
 | DEC-65 | 2026-11-17 | Cash buffer, chosen by the human: the owner may enter `opening_cash` (new optional shop column, migration 0005, `PATCH /api/shops/{id}`); cash = opening cash + logged sales - purchases - expenses - instalments due since launch. If it was never entered, the cash runway is unknown, that pivot rule is skipped and the review notes it. If the cash figure is zero or negative while the period is cash-positive, the runway stays unknown, the review asks the owner to check the opening cash, and the other indicators decide | No decision on a guessed cash figure (rule 1) | Assume zero opening cash; use the budget as opening cash; pivot on negative cash | ACTIVE |
 | DEC-66 | 2026-11-17 | Review engine details **taken by the assistant and to be confirmed by the human**: the period ends yesterday; days before launch are not expected; sales and purchases are scaled up for unlogged days, expenses are not; `revenue_vs_p50` compares logged days with the set-up forecast P50 of the same days (monthly P50 spread evenly over the days); `growth_rate` = least-squares slope of the blocks' average daily sales / their mean; the runway outflow includes the monthly EMI and instalments are assumed paid on their due dates; a block with fewer than 7 logged days has no values; indicators are rounded (4 decimals, runway 1) before the rules are applied; an unknown indicator never satisfies a condition; hold reasons are the grow conditions that failed (data completeness first); confidence is `medium` at best and `low` when completeness is under 0.7, no forecast exists, or dscr is unknown although a loan exists; no data at all gives hold with low confidence; a loan stored without dates counts towards the EMI but not towards past instalments; running a review twice for the same period replaces the row; `review` gets columns `confidence`, `details`, `created_on` | ML_PLAN section 7 names the indicators but not these details; each is the simplest reading | Missing days as zero sales; confidence `high` when all data is present; one review row per run | ACTIVE |
+| DEC-67 | 2026-11-17 | Alerts store, chosen by the human: (a) when the owner resolves an alert and the problem is still there at the next check, the owner is reminded with a new alert; the owner can turn reminders off for that problem (`mute: true` on resolve), and is then alerted again only when a new problem appears (the old one went away and came back, or it is another kind); (b) an alert is never closed automatically: when its problem goes away it stays open until the owner resolves it; (c) a notification is created for new warn and critical alerts and for a ready review, not for info alerts (dead stock, data gap) | The owner stays in control: reminded by default, quiet on request, and nothing disappears unseen | Stay quiet after any resolve; remind after 7 days; close alerts automatically; notify on every alert | ACTIVE |
+| DEC-68 | 2026-11-17 | Alerts store details **taken by the assistant and to be confirmed by the human**: one problem = one `dedupe_key` (the kind; for an EMI the kind + loan + due date, so next month's instalment is a new problem); while an alert is open its numbers are refreshed in place; an alert whose problem went away shows `still_active: false` and `cleared_on`; a reminder is raised at the very next check (daily once B-09 runs) and its notification carries `is_reminder: true`; `GET /alerts` only reads, `POST /alerts/refresh` runs the rules (the daily job will call the same service); cash for the EMI rule = opening cash + logs up to yesterday - instalments due before today; new endpoints `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`; migration 0006 adds the alert fields and `notification.created_at` | ARCHITECTURE lists the alert endpoints but not the life cycle | Compute alerts on every read; one key per item; mute as a shop-wide setting per alert kind | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -985,6 +988,21 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: B-08 alerts store, resolve with mute, notifications
+
+- **Checkpoint:** B-08 DONE. Acceptance: alert create, list, resolve works; notifications unread count works.
+- `backend/app/services/alerts.py`: `found_today` gathers the shop's numbers and runs the M-09 rules; `refresh` keeps
+  the `alert` table in step (no duplicates, reminder after resolve, quiet when muted, `cleared_on` when the problem
+  goes away); `notify` adds a notification.
+- Endpoints: `GET /api/shops/{id}/alerts?status=open|all`, `POST .../alerts/refresh`,
+  `POST .../alerts/{id}/resolve` (body `{"mute": true}` optional), `GET /api/notifications`,
+  `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`.
+- Migration `0006`: alert `params`, `dedupe_key`, `raised_on`, `last_seen_on`, `cleared_on`, `resolved_on`, `muted`;
+  `notification.created_at`.
+- Tests: `tests/test_alerts_store.py` (6). The EMI alert stays silent until the owner enters opening cash (DEC-62).
+- **Not done here:** nothing calls `refresh` on a schedule yet (B-09). The "review ready" notification is also B-09.
+- **Next person:** DEC-68 lists details the assistant chose; the human has not yet confirmed them.
 
 ## 2026-11-17: M-08 review engine (ML5), endpoints and 20 hand-labelled scenarios
 

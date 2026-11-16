@@ -2,6 +2,21 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: B-08 alerts store, resolve with mute, notifications
+
+- **Checkpoint:** B-08 DONE. Acceptance: alert create, list, resolve works; notifications unread count works.
+- `backend/app/services/alerts.py`: `found_today` gathers the shop's numbers and runs the M-09 rules; `refresh` keeps
+  the `alert` table in step (no duplicates, reminder after resolve, quiet when muted, `cleared_on` when the problem
+  goes away); `notify` adds a notification.
+- Endpoints: `GET /api/shops/{id}/alerts?status=open|all`, `POST .../alerts/refresh`,
+  `POST .../alerts/{id}/resolve` (body `{"mute": true}` optional), `GET /api/notifications`,
+  `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`.
+- Migration `0006`: alert `params`, `dedupe_key`, `raised_on`, `last_seen_on`, `cleared_on`, `resolved_on`, `muted`;
+  `notification.created_at`.
+- Tests: `tests/test_alerts_store.py` (6). The EMI alert stays silent until the owner enters opening cash (DEC-62).
+- **Not done here:** nothing calls `refresh` on a schedule yet (B-09). The "review ready" notification is also B-09.
+- **Next person:** DEC-68 lists details the assistant chose; the human has not yet confirmed them.
+
 ## 2026-11-17: M-08 review engine (ML5), endpoints and 20 hand-labelled scenarios
 
 - **Checkpoint:** M-08 DONE. All 20 scenarios in `backend/tests/review_scenarios.yaml` give the expected decision.

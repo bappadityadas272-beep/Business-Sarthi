@@ -120,6 +120,14 @@ class Alert(Base):
     message_key: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     resolved: Mapped[bool] = mapped_column(default=False)
+    # B-08 (DEC-67, DEC-68)
+    params: Mapped[dict] = mapped_column(JSON, default=dict)          # numbers and names for the message
+    dedupe_key: Mapped[str] = mapped_column(String(64), default="", index=True)   # one problem = one key
+    raised_on: Mapped[date | None] = mapped_column(Date)             # app day the alert was raised
+    last_seen_on: Mapped[date | None] = mapped_column(Date)          # last check on which the problem held
+    cleared_on: Mapped[date | None] = mapped_column(Date)            # first check on which it no longer held
+    resolved_on: Mapped[date | None] = mapped_column(Date)           # the owner resolved it (never automatic)
+    muted: Mapped[bool] = mapped_column(default=False)               # owner: do not remind me of this problem
 
 
 class StockItem(Base):
@@ -170,6 +178,7 @@ class Notification(Base):
     kind: Mapped[str] = mapped_column(String(32))
     payload_json: Mapped[dict] = mapped_column(JSON, default=dict)
     read: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class OsmCache(Base):
