@@ -3,7 +3,15 @@
 version: 1
 source: "ML_PLAN section 5"
 assumption: true
-k: 60
+k: 10                            # DEC-55: lowest blend WAPE in cross-validation on synthetic TRAINING shops
+                                 #   (ML_PLAN first proposed 60). Re-tune when real pilot data exists.
 level_only_below_days: 28        # fewer than 28 days of history: level-only model
 low_confidence_missing_share: 0.30   # more than 30% of days missing: confidence = low
 low_confidence_below_days: 30    # ARCHITECTURE section 11: fewer than 30 days of data = low confidence
+# ---- added for M-06 (DEC-55); assumptions, see docs/EVAL_REPORT.md for how they behave on synthetic shops ----
+min_days: 7                      # fewer logged days than this: no re-forecast at all
+damped_trend: true               # the ETS trend flattens out instead of running on for months
+error_rescale_min: 0.5           # band rescale = observed error / expected band half-width, kept within
+error_rescale_max: 2.0           #   [min, max]
+interval_scale: 3.7              # final band multiplier: the value whose P10-P90 coverage on TRAINING shops is
+                                 #   closest to 80% at this k (eval/reforecast_eval.py). Change it together with k.

@@ -19,6 +19,7 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "backend"))
+sys.path.insert(0, str(REPO / "eval"))
 
 from app.ml.features import MONOTONE, TARGET, month_rows, training_table
 from app.ml.train import ALPHAS, DATA_DIR, MODEL_DIR, load, pinball, predict_quantiles
@@ -203,7 +204,8 @@ def main(argv: list[str] | None = None) -> None:
     text = render(r)
     print(json.dumps(r, indent=2) if a.json else text)
     if a.write:
-        REPORT.write_text(text + "\n", encoding="utf-8", newline="\n")
+        from parts import merge  # keep the parts written by the other eval scripts
+        REPORT.write_text(merge(text) + "\n", encoding="utf-8", newline="\n")
         print(f"\nwrote {REPORT}")
 
 

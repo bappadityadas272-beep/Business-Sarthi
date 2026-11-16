@@ -70,8 +70,8 @@
 - **Approach (shrinkage blend):**
   1. Prior = ML2 forecast for the same horizon.
   2. Own model = ETS (additive trend, weekly seasonality) on daily total sales via `statsmodels` `ExponentialSmoothing`, aggregated to months; with fewer than 28 days use a level-only model.
-  3. Blend weight `w = n_days / (n_days + k)` on own model, with `k` about 60 (tunable, `data/rules/blend.yaml`). More data means more trust in the shop's own history.
-  4. Interval: combine ETS residual spread with the prior band, then rescale using the shop's observed error against its original forecast.
+  3. Blend weight `w = n_days / (n_days + k)` on own model, with `k` tunable in `data/rules/blend.yaml` (first proposed as about 60; set to 10 by cross-validation on synthetic training shops, DEC-55). More data means more trust in the shop's own history.
+  4. Interval: combine ETS residual spread with the prior band, then rescale using the shop's observed error against its original forecast. A final band multiplier, chosen on training shops for about 80% coverage, is applied (DEC-55; details in DEC-56).
 - **Gaps:** missing days are marked missing (not zero). If more than 30 percent of days are missing, `confidence = low` and the review says so.
 - **Why:** classical, robust on short series, easy to explain ("we trust your own sales more as we see more of them").
 - **Rejected:** LSTM or transformers (no data); fitting GBM per shop (too few points).

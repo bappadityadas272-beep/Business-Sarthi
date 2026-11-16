@@ -152,6 +152,11 @@ class Blend(_Header):
     level_only_below_days: int = Field(ge=0)
     low_confidence_missing_share: float = Field(gt=0, lt=1)
     low_confidence_below_days: int = Field(ge=0)
+    min_days: int = Field(ge=2)
+    damped_trend: bool
+    error_rescale_min: float = Field(gt=0, le=1)
+    error_rescale_max: float = Field(ge=1)
+    interval_scale: float = Field(gt=0)
 
     def weight(self, n_days: int) -> float:
         """Weight on the shop's own model: n / (n + k)."""

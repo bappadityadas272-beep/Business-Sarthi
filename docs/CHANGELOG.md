@@ -2,6 +2,31 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: M-06 re-forecast (ML3) with rolling-origin backtest
+
+- **Checkpoint:** M-06 DONE. Target (blend beats prior-only after 2 months) **met on synthetic shops**; see the honest
+  notes in `docs/EVAL_REPORT.md`, section "ML3 re-forecast".
+- `backend/app/ml/reforecast.py`: `prepare` (one ETS fit on daily totals, damped trend + weekly seasonality, level only
+  below 28 logged days) and `combine` (blend weight w = n_days / (n_days + k), band, confidence). Missing days stay
+  missing. Nothing after the origin is read. More than 30% of days missing gives confidence `low` with the reason.
+- `POST /api/shops/{id}/reforecast`: uses the latest set-up forecast and logs up to yesterday (app clock); stores a
+  `forecast` row with kind `reforecast`. Errors: 409 `setup_forecast_missing`, 422 `not_enough_days_logged`,
+  422 `forecast_horizon_over`.
+- `eval/reforecast_eval.py` (`make eval-reforecast`; slow, see the last bullet; `--reuse` rescoring takes seconds): blend vs prior
+  only vs ETS only vs last-week naive at 1, 2 and 3 months of history, k chosen on training shops with out-of-fold
+  priors, sensitivity to k, and 0/10/30/50% missing days.
+- `eval/parts.py`: `docs/EVAL_REPORT.md` is now the ML2 text plus one part per later model (`eval/report_parts/`), so
+  `make eval` no longer wipes the other sections.
+- `data/rules/blend.yaml`: k 60 -> 10 and band multiplier 3.7 (DEC-55); new fields `min_days`, `damped_trend`,
+  `error_rescale_min/max`, `interval_scale` (DEC-56).
+- Tests: `tests/test_reforecast.py` (18: gaps at 0/10/30/50%, leakage, ordering, level-only, hand-checked spread, endpoint).
+- **Honest findings:** the set-up forecast adds little once sales exist (ETS alone is nearly as good as the blend); the
+  band needed a large multiplier and is hardly narrower than the set-up band; it is too wide when days are missing.
+- **Next person:** the full backtest took about 12 minutes in one run and was stopped after 38 minutes in another on
+  the same machine (12 workers, `OMP_NUM_THREADS=1`, set in the Makefile target); the cause of the difference was not
+  found. The numbers in the report come from the completed run; the report was written from its cached cases with
+  `--reuse` (`data/synthetic/out/reforecast_cases.joblib`, not in git). DEC-56 awaits the human's confirmation.
+
 ## 2026-11-16: B-05, B-06, B-07 daily logs, stock and assets, loans with EMI schedule
 
 - **Checkpoints:** B-05, B-06, B-07 DONE.

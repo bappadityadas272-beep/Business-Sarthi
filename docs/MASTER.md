@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-06 re-forecast"
+  current_focus: "M-07 stock advice"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -163,7 +163,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
 | M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | DONE | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | SYNTHETIC, 200 test shops: WAPE 0.197 vs peer median 0.313 (37% lower); coverage 80.5%; 0 monotone breaks. First run on 200 shops missed coverage (94.0%), data grown to 1,000 shops (DEC-39); see EVAL_REPORT. Public-data run waits for D-02 |
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | DONE | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | Endpoint + service; margin, wage and payback extension are labelled assumptions (DEC-48 to DEC-52); confidence low under mock OSM by design |
-| M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | TODO | Backtest shows blend beats prior-only after 2 months; handles gaps | |
+| M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | DONE | Backtest shows blend beats prior-only after 2 months; handles gaps | Met on synthetic shops: blend WAPE 8.8% vs prior-only 19.5% at 2 months (k = 10, DEC-55). Honest notes in EVAL_REPORT |
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | TODO | ROP, reorder qty, dead and overstock flags match hand-calculated cases | |
 | M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | TODO | 20 labelled scenarios all give the expected decision | |
 | M-09 | Alert engine (ML6) | F6 | P0 | B-05, B-07, M-07, D-04 | TODO | Injected dips detected (recall at least 90%); false alarms under 1 per shop per month | |
@@ -599,6 +599,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}` | Create shop from idea; list and read own shops | B |
 | `GET /api/shops/{id}/location-score` | Location score, nearby counts, starter mix | M |
 | `POST /api/shops/{id}/forecast` | Set-up forecast and investment split | M |
+| `POST /api/shops/{id}/reforecast` | Re-forecast from the latest set-up forecast and the logged sales (stored with kind `reforecast`) | M |
 | `POST /api/shops/{id}/logs` (bulk), `GET .../logs?from&to` | Daily sales, purchases, expenses | B |
 | `GET/POST /api/shops/{id}/stock`, `POST .../stock/moves` | Stock items, movements | B |
 | `GET /api/shops/{id}/stock/advice` | Reorder list and dead stock | M |
@@ -655,7 +656,7 @@ Business-Sarthi/
     kb/                 schemes.json (verified flags), sources.md
     rules/              review_rules.yaml, alert_rules.yaml, osm_tags.yaml, ...
     osm_mock/           hand-made mock OSM answers (OSM_MODE=mock)
-  eval/                 forecast_eval.py, chat_eval.jsonl, chat_eval.py
+  eval/                 forecast_eval.py, reforecast_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
   .env.example
   Makefile
 ```
@@ -792,8 +793,8 @@ Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
 - **Approach (shrinkage blend):**
   1. Prior = ML2 forecast for the same horizon.
   2. Own model = ETS (additive trend, weekly seasonality) on daily total sales via `statsmodels` `ExponentialSmoothing`, aggregated to months; with fewer than 28 days use a level-only model.
-  3. Blend weight `w = n_days / (n_days + k)` on own model, with `k` about 60 (tunable, `data/rules/blend.yaml`). More data means more trust in the shop's own history.
-  4. Interval: combine ETS residual spread with the prior band, then rescale using the shop's observed error against its original forecast.
+  3. Blend weight `w = n_days / (n_days + k)` on own model, with `k` tunable in `data/rules/blend.yaml` (first proposed as about 60; set to 10 by cross-validation on synthetic training shops, DEC-55). More data means more trust in the shop's own history.
+  4. Interval: combine ETS residual spread with the prior band, then rescale using the shop's observed error against its original forecast. A final band multiplier, chosen on training shops for about 80% coverage, is applied (DEC-55; details in DEC-56).
 - **Gaps:** missing days are marked missing (not zero). If more than 30 percent of days are missing, `confidence = low` and the review says so.
 - **Why:** classical, robust on short series, easy to explain ("we trust your own sales more as we see more of them").
 - **Rejected:** LSTM or transformers (no data); fitting GBM per shop (too few points).
@@ -958,6 +959,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-52 | 2026-11-16 | Forecast drivers are the top 3 LightGBM contributions among location counts, shop size and city tier only. Rent and staff count are never shown as reasons | In the synthetic data rent follows size and city, so it would mislead; chosen by the human | Show any model input | ACTIVE |
 | DEC-53 | 2026-11-16 | Loans gain `start_date` and `tenure_months` (migration 0004). The schedule lists one instalment per month on `due_day` (a due day past the month end falls on the last day of that month); the first instalment is the first due date strictly after the start date. Dates and the fixed EMI only: no interest or balance maths, and payments are not tracked ("due so far" is by date) | Alerts and reviews need the next due date and instalments left; chosen by the human (first-instalment rule is the assistant's default, to be confirmed) | Keep only principal, EMI and due day; full amortisation table | ACTIVE |
 | DEC-54 | 2026-11-16 | Input defaults for daily logs and stock, **taken by the assistant and to be confirmed by the human**: categories are the five synthetic ones plus `other`; days after the app's today are rejected; amounts cannot be negative; saving the same (shop, day, category) replaces the figures; stock moves send a positive quantity for purchase, sale and waste (sale and waste stored negative) and a signed one for `adjust`; on-hand may go below zero (late entries) and is not blocked; item names are unique per shop ignoring case | Simplest reading of the B-05 and B-06 acceptance lines | Free-text categories; block sales above on-hand | ACTIVE |
+| DEC-55 | 2026-11-16 | Re-forecast blend settings (`data/rules/blend.yaml`): **k = 10** and **band multiplier 3.7**, replacing the ML_PLAN starting value k of about 60. k is the value with the lowest blend WAPE in cross-validation on synthetic TRAINING shops (out-of-fold set-up forecasts as the prior); the multiplier is the one whose P10-P90 coverage on training shops is closest to 80% at that k. Both are assumptions valid for synthetic shops only and must be re-tuned on pilot data | The human asked for k to be chosen by cross-validation on training shops and picked this option when shown the trade-off (lowest error, but a band almost as wide as the set-up forecast) | k = 30 with multiplier 1.7 (narrower band, slightly higher error); keep k = 60 with multiplier 1.4 | ACTIVE |
+| DEC-56 | 2026-11-16 | Re-forecast details not fixed by ML_PLAN, **taken by the assistant and to be confirmed by the human**: the ETS trend is damped; no re-forecast below 7 logged days; the band rescale (observed error / expected half-width) is kept within 0.5 to 2.0; the own-model and prior spreads are combined as a root of the sum of squares weighted by w and 1 - w; missing days already past in the running month are estimated, never counted as zero; the origin of the API re-forecast is yesterday by the app clock; the result is never above confidence `medium` (as DEC-50) | Needed to make ML_PLAN section 5 computable; each is the simplest reading | Undamped trend; no limits on the rescale; origin = today | ACTIVE |
+| DEC-57 | 2026-11-16 | Stock advice (M-07) choices by the human: the demand half-life is chosen by comparing 7 and 14 days in the synthetic simulation; an item is `new` (falls back to the category average) below 14 days of history; the simulation treats each synthetic category as one item with demand in rupees | ML_PLAN section 6 gives no smoothing speed or definition of a new item, and the synthetic data has no item level | Fixed 7-day half-life; new below 7 days; extend the generator with item-level sales | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -969,6 +973,31 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: M-06 re-forecast (ML3) with rolling-origin backtest
+
+- **Checkpoint:** M-06 DONE. Target (blend beats prior-only after 2 months) **met on synthetic shops**; see the honest
+  notes in `docs/EVAL_REPORT.md`, section "ML3 re-forecast".
+- `backend/app/ml/reforecast.py`: `prepare` (one ETS fit on daily totals, damped trend + weekly seasonality, level only
+  below 28 logged days) and `combine` (blend weight w = n_days / (n_days + k), band, confidence). Missing days stay
+  missing. Nothing after the origin is read. More than 30% of days missing gives confidence `low` with the reason.
+- `POST /api/shops/{id}/reforecast`: uses the latest set-up forecast and logs up to yesterday (app clock); stores a
+  `forecast` row with kind `reforecast`. Errors: 409 `setup_forecast_missing`, 422 `not_enough_days_logged`,
+  422 `forecast_horizon_over`.
+- `eval/reforecast_eval.py` (`make eval-reforecast`; slow, see the last bullet; `--reuse` rescoring takes seconds): blend vs prior
+  only vs ETS only vs last-week naive at 1, 2 and 3 months of history, k chosen on training shops with out-of-fold
+  priors, sensitivity to k, and 0/10/30/50% missing days.
+- `eval/parts.py`: `docs/EVAL_REPORT.md` is now the ML2 text plus one part per later model (`eval/report_parts/`), so
+  `make eval` no longer wipes the other sections.
+- `data/rules/blend.yaml`: k 60 -> 10 and band multiplier 3.7 (DEC-55); new fields `min_days`, `damped_trend`,
+  `error_rescale_min/max`, `interval_scale` (DEC-56).
+- Tests: `tests/test_reforecast.py` (18: gaps at 0/10/30/50%, leakage, ordering, level-only, hand-checked spread, endpoint).
+- **Honest findings:** the set-up forecast adds little once sales exist (ETS alone is nearly as good as the blend); the
+  band needed a large multiplier and is hardly narrower than the set-up band; it is too wide when days are missing.
+- **Next person:** the full backtest took about 12 minutes in one run and was stopped after 38 minutes in another on
+  the same machine (12 workers, `OMP_NUM_THREADS=1`, set in the Makefile target); the cause of the difference was not
+  found. The numbers in the report come from the completed run; the report was written from its cached cases with
+  `--reuse` (`data/synthetic/out/reforecast_cases.joblib`, not in git). DEC-56 awaits the human's confirmation.
 
 ## 2026-11-16: B-05, B-06, B-07 daily logs, stock and assets, loans with EMI schedule
 

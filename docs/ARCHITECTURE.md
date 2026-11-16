@@ -233,6 +233,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}` | Create shop from idea; list and read own shops | B |
 | `GET /api/shops/{id}/location-score` | Location score, nearby counts, starter mix | M |
 | `POST /api/shops/{id}/forecast` | Set-up forecast and investment split | M |
+| `POST /api/shops/{id}/reforecast` | Re-forecast from the latest set-up forecast and the logged sales (stored with kind `reforecast`) | M |
 | `POST /api/shops/{id}/logs` (bulk), `GET .../logs?from&to` | Daily sales, purchases, expenses | B |
 | `GET/POST /api/shops/{id}/stock`, `POST .../stock/moves` | Stock items, movements | B |
 | `GET /api/shops/{id}/stock/advice` | Reorder list and dead stock | M |
@@ -289,7 +290,7 @@ Business-Sarthi/
     kb/                 schemes.json (verified flags), sources.md
     rules/              review_rules.yaml, alert_rules.yaml, osm_tags.yaml, ...
     osm_mock/           hand-made mock OSM answers (OSM_MODE=mock)
-  eval/                 forecast_eval.py, chat_eval.jsonl, chat_eval.py
+  eval/                 forecast_eval.py, reforecast_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
   .env.example
   Makefile
 ```

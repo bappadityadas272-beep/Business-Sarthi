@@ -106,3 +106,35 @@ class ForecastOut(BaseModel):
     investment_split: InvestmentSplitOut
     drivers: list[Driver]
     confidence: Confidence
+
+
+class ReforecastMonth(Trio):
+    k: int
+    start: date
+    end: date
+    prior_p50: int                         # the set-up forecast for the same month
+    own_p50: int                           # the shop's own model alone
+    actual_so_far: int                     # sales already logged in this month
+    days_logged: int
+    days_open: int                         # days of the month still estimated
+
+
+class ReforecastOut(BaseModel):
+    forecast_id: int
+    shop_id: int
+    kind: Literal["reforecast"]
+    made_on: date
+    origin: date                           # last day whose logs were used
+    based_on_forecast_id: int
+    is_estimate: bool = True
+    trained_on_synthetic: bool = True
+    months: list[ReforecastMonth]
+    n_days: int
+    span_days: int
+    missing_share: float
+    weight_own: float
+    k: float
+    own_model: str
+    observed_error: float | None
+    interval_rescale: float
+    confidence: Confidence

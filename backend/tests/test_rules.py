@@ -10,7 +10,7 @@ from app.rules import FILES, RULES_DIR, RuleFileError, load_rules
 def test_all_rule_files_validate():
     r = load_rules()
     assert [d.decision for d in r.review.decisions] == ["pivot", "grow", "hold"]
-    assert r.blend.k == 60
+    assert r.blend.k == 10 and r.blend.interval_scale == 3.7      # DEC-55
     assert r.alerts.rules.sales_dip.ratio_below == 0.70
 
 
@@ -22,7 +22,7 @@ def test_every_file_is_flagged_as_assumption():
 def test_blend_weight_grows_with_data():
     b = load_rules().blend
     assert b.weight(0) == 0.0
-    assert b.weight(60) == pytest.approx(0.5)
+    assert b.weight(10) == pytest.approx(0.5) and b.weight(30) == pytest.approx(0.75)
     assert b.weight(30) < b.weight(90)
 
 
