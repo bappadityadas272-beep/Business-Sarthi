@@ -1,0 +1,92 @@
+# Synthetic kirana data generator config (D-01, ML_PLAN section 2).
+# EVERY VALUE HERE IS AN ASSUMPTION (approved 2026-11-16, DEC-23). Outputs are synthetic and labelled so.
+# Changing any value changes the data: log it in docs/DECISIONS.md.
+version: 1
+is_synthetic: true
+assumption: true
+
+seed: 42
+n_shops: 200
+months: 24
+launch_window: {start: "2022-01-01", end: "2024-06-30"}
+categories: [staples, dairy, snacks_beverages, household, personal_care]
+
+city_tiers:
+  probs:       {1: 0.30, 2: 0.40, 3: 0.30}
+  demand_mult: {1: 1.3, 2: 1.0, 3: 0.8}
+  rent_per_sqft: {1: [50, 70], 2: [30, 45], 3: [18, 30]}   # INR per month, uniform range
+
+catchment:                       # within 500 m
+  homes: {dist: loguniform, low: 20, high: 400}
+  schools: {dist: poisson, lam: 1.5}
+  transit: {dist: poisson, lam: 4}
+  banks_atms: {dist: poisson, lam: 2}
+  competitors: {dist: poisson, lam: 4}
+size_sqft: {low: 100, high: 400}
+
+# steady daily revenue (INR) = (intercept + sum coef*feature) * sqrt(size/size_ref) * tier_mult
+#                              * exp(competitor_decay * competitors) * lognormal(0, shop_noise_sigma)
+steady_revenue:
+  intercept: 2500
+  coef: {homes: 25, schools: 600, transit: 300, banks_atms: 200}
+  size_ref: 200
+  competitor_decay: -0.06
+  shop_noise_sigma: 0.20
+  clip: [4000, 25000]
+
+weekday_mult: {Mon: 0.95, Tue: 0.95, Wed: 0.96, Thu: 0.97, Fri: 1.00, Sat: 1.10, Sun: 1.15}
+payday: {first_days: 7, first_mult: 1.10, last_days: 5, last_mult: 0.95}
+
+# Festival uplift ramps linearly over `days` up to `peak` on the festival date.
+# Dates written from memory: NOT VERIFIED against an official calendar (TODO verify).
+festivals:
+  verified: false
+  diwali:          {peak: 0.60, days: 7, dates: ["2022-10-24", "2023-11-12", "2024-10-31", "2025-10-20", "2026-11-08"]}
+  dussehra:        {peak: 0.25, days: 5, dates: ["2022-10-05", "2023-10-24", "2024-10-12", "2025-10-02", "2026-10-20"]}
+  eid_al_fitr:     {peak: 0.30, days: 3, dates: ["2022-05-03", "2023-04-22", "2024-04-11", "2025-03-31", "2026-03-21"]}
+  holi:            {peak: 0.25, days: 3, dates: ["2022-03-18", "2023-03-08", "2024-03-25", "2025-03-14", "2026-03-04"]}
+  ganesh_chaturthi: {peak: 0.15, days: 3, dates: ["2022-08-31", "2023-09-19", "2024-09-07", "2025-08-27", "2026-09-14"]}
+  raksha_bandhan:  {peak: 0.15, days: 2, dates: ["2022-08-11", "2023-08-30", "2024-08-19", "2025-08-09", "2026-08-28"]}
+  makar_sankranti: {peak: 0.15, days: 2, dates: ["2022-01-14", "2023-01-15", "2024-01-15", "2025-01-14", "2026-01-14"]}
+  christmas:       {peak: 0.10, days: 2, dates: ["2022-12-25", "2023-12-25", "2024-12-25", "2025-12-25", "2026-12-25"]}
+
+# ramp(m) = 1 - (1 - r0) * exp(-m / tau), m = months since launch
+ramp_up: {r0: [0.45, 0.65], tau_months: [1.5, 3.5]}
+trend_annual: [-0.02, 0.08]
+daily_noise_sigma: 0.12
+category_noise_sigma: 0.08
+shock: {prob: 0.15, length_days: 30, mult: [0.50, 0.75], start_month: [4, 22]}
+
+category_mix:
+  base: {staples: 0.38, dairy: 0.18, snacks_beverages: 0.20, household: 0.13, personal_care: 0.11}
+  dirichlet_concentration: 50
+margins:                         # gross margin ranges per category, uniform per shop
+  staples: [0.08, 0.12]
+  dairy: [0.06, 0.10]
+  snacks_beverages: [0.15, 0.22]
+  household: [0.12, 0.18]
+  personal_care: [0.15, 0.20]
+purchases: {restock_every_days: [2, 4], cogs_factor: [0.95, 1.08]}
+
+rent_clip: [4000, 25000]
+staff: {probs: {0: 0.30, 1: 0.40, 2: 0.20, 3: 0.10}, monthly_wage: [8000, 12000]}
+
+# --demo: Ramesh Kirana for D-05 (3 months of logs, one dip, EMI squeeze)
+demo:
+  name: "Ramesh Kirana"
+  shop_id: DEMO-001
+  launch_date: "2026-08-01"
+  end_date: "2026-10-31"
+  city_tier: 2
+  homes: 180
+  schools: 2
+  transit: 5
+  banks_atms: 2
+  competitors: 3
+  size_sqft: 200
+  monthly_rent: 9000
+  staff_count: 1
+  staff_wage: 10000
+  budget: 300000
+  dip: {start: "2026-09-05", end: "2026-09-25", mult: 0.60}
+  loan: {principal: 200000, emi: 7500, due_day: 5}

@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "D-01"
+  current_focus: "plot 3 sample shops for human review"
   blockers: []
   demo_path_ready: false
   notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
@@ -132,7 +132,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | TODO | Generates 200 shops x 24 months; two runs with same seed are identical; every file has `is_synthetic` metadata | |
+| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | DONE | Generates 200 shops x 24 months; two runs with same seed are identical; every file has `is_synthetic` metadata | generate.py + config.yaml; 730,820 daily rows; same-seed SHA-256 identical; 7 tests in tests/test_synthetic.py; DEC-23 to DEC-26 |
 | D-02 | Pick and **licence-check** one public retail dataset; document in `data/PUBLIC_DATA.md` (name, URL, licence, date checked) | F1 | P1 | S-01 | TODO | Licence permits our use, or dataset replaced | Do not commit the raw data if the licence forbids |
 | D-03 | Scheme KB v0: 5 to 8 entries from official pages, `verified:false`, with source URL and `last_verified` | F4 | P1 | S-01 | TODO | JSON validates against schema; every entry has a source URL | Human verification is R-04 |
 | D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | DONE | Loader validates every file with Pydantic | Loader `app/rules.py`; 8th file `investment_split.yaml` added (DEC-22); drafted values approved as assumptions (DEC-21) |
@@ -921,6 +921,10 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-20 | 2026-11-16 | Backend dev, tests and scripts run in Docker (`python:3.14-slim`, `docker-compose.yml`), not a Windows venv | Windows Smart App Control blocked the compiled DLLs of numpy, pandas, SQLAlchemy, scikit-learn and LightGBM; Linux containers are not affected, and the security setting stays on | Pin older wheels, turn off Smart App Control (cannot be re-enabled), WSL distro | ACTIVE |
 | DEC-21 | 2026-11-16 | Rule values ML_PLAN left unspecified (location weights and caps, kirana product mix, expansion ranges, 5 extra review actions) use the drafted values in `data/rules/`, flagged `assumption: true` | ML_PLAN names the features and options but gives no numbers; approved by the human so M-02, M-05 and M-10 are not blocked | Leave unset and block D-04 | ACTIVE |
 | DEC-22 | 2026-11-16 | Investment split in `data/rules/investment_split.yaml`: deposit = 3 x monthly rent, reserve = 3 months of fixed costs, remainder 65% stock / 35% fixtures; flag "budget too low" if deposit + reserve exceed the budget | F8 planner (M-05) needs it and no doc specified it; assumption | Defer to M-05 | ACTIVE |
+| DEC-23 | 2026-11-16 | Synthetic generator parameters in `data/synthetic/config.yaml` (seed 42, 200 shops x 24 months, launch 2022-01 to 2024-06, steady-revenue formula, weekday/payday/festival multipliers, ramp-up r0 0.45-0.65 and tau 1.5-3.5 months, 15% chance of a 30-day shock, category mix and margins); all flagged `assumption: true`, festival dates `verified: false` | ML_PLAN section 2 names the effects but not the numbers; approved by the human | Fit to a public dataset first (deferred to M-03 validation) | ACTIVE |
+| DEC-24 | 2026-11-16 | Synthetic labelling: every CSV has an `is_synthetic=true` column and each output folder has a `metadata.json` (`is_synthetic: true`, seed, config SHA-256, row counts, no timestamp so reruns are byte-identical) | Satisfies AGENTS rule 4 at file and row level | Metadata file only | ACTIVE |
+| DEC-25 | 2026-11-16 | `--demo` writes Ramesh Kirana (DEMO-001) to `data/synthetic/out/demo/`: launch 2026-08-01, 3 months of logs to 2026-10-31, a 40% sales dip 2026-09-05 to 09-25, loan EMI 7,500 due on the 5th; uses its own RNG stream so it never shifts the training data | Recent dates make the demo look live; D-05 seeds the DB from it | Older dates, separate script | ACTIVE |
+| DEC-26 | 2026-11-16 | Generated data goes to `data/synthetic/out/` and is git-ignored; anyone regenerates it with `python data/synthetic/generate.py --demo` | Output is ~37 MB and fully reproducible from seed + config | Commit the CSVs | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -932,6 +936,15 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: D-01 synthetic data generator
+
+- `data/synthetic/config.yaml` (all values are assumptions, DEC-23) and `data/synthetic/generate.py` with `--seed`, `--config`, `--out`, `--n-shops` and `--demo`.
+- Output (git-ignored, DEC-26) in `data/synthetic/out/`: `shops.csv` (200 shops; columns prefixed `latent_` are generator internals, **never use them as model features**), `daily.csv` (730,820 rows: shop x day x 5 categories, sales and lumpy restock purchases), `labels.csv` (revenue months 1-3 and 1-12 for ML2), `metadata.json`. `--demo` adds `out/demo/` for Ramesh Kirana (DEC-25).
+- Every CSV row has `is_synthetic=true`; `metadata.json` too (DEC-24). Same seed gives byte-identical files (checked by SHA-256).
+- Measured: weekend/weekday about 1.17, month 1 about 0.65 of month 6 (ramp-up), Diwali day about 1.5x a normal day, purchases about 0.89 of sales, 24 shops with a shock. 31 of 200 shops hit the lower steady-revenue clip (INR 4,000/day).
+- Tests `tests/test_synthetic.py` (7). Festival dates are from memory: `verified: false`.
+- Next person: the demo profile gives DSCR about 0.3 in August, below 0 in the dip month and about 1.5 in October (Diwali build-up), so the review may read as "pivot". Tune in D-05 if needed.
 
 ## 2026-11-16: D-04 rule files and validated loader
 
