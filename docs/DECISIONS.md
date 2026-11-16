@@ -19,3 +19,7 @@
 | DEC-13 | 2026-11-16 | Business models (freemium, quarterly plan, loan referrals, supplier tie-ups, institutional licence) are proposals, out of prototype scope; referral revenue must never influence advice rules | Keep the prototype focused; avoid conflicts of interest | Building billing now | ACTIVE |
 | DEC-14 | 2026-11-16 | Branch and commit convention: one checkpoint per commit group, message `CP-<ID>: summary` | Makes progress traceable | Free-form commits | ACTIVE |
 | DEC-15 | 2026-11-16 | Voice: browser Web Speech API with text fallback | Free and no server cost; works for Hindi on supported browsers | Paid speech APIs | ACTIVE |
+| DEC-16 | 2026-11-16 | `AGENTS.md` lives at the repo root (moved back from `docs/`) | Matches ARCHITECTURE section 9; `tools/build_master.py` expects it there | Keep in `docs/` and change the script | ACTIVE |
+| DEC-17 | 2026-11-16 | No `LICENSE` file yet; add one after team approval | The team has not approved a licence | MIT, Apache-2.0 now | ACTIVE |
+| DEC-18 | 2026-11-16 | Backend runs on Python 3.14 in `backend/.venv`; `requires-python >=3.11` | 3.14 is installed on the dev machine; 3.11+ stays supported for teammates | Install 3.12 | ACTIVE |
+| DEC-19 | 2026-11-16 | Dependencies: pip + venv with exact `==` pins in `backend/pyproject.toml` | No extra tooling needed | uv, Poetry | ACTIVE |

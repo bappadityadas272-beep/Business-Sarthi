@@ -4,12 +4,12 @@
 
 ```yaml
 project_status:
-  phase: "0 - documentation only; no application code yet"
+  phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "none (start with S-01)"
+  current_focus: "S-02"
   blockers: []
   demo_path_ready: false
-  notes: "All checkpoints TODO. Pick the first TODO whose dependencies are DONE."
+  notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
 ```
 
 **Status values:** `TODO` · `IN_PROGRESS` · `DONE` · `BLOCKED` · `DROPPED`
@@ -22,7 +22,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| S-01 | Repo scaffold: folders from ARCHITECTURE section 9, `.gitignore` (db, `.env`, models, node_modules), MIT `LICENSE`, `.env.example` | all | P0 | - | TODO | Tree matches layout; `git status` clean of secrets | LICENSE needs team approval |
+| S-01 | Repo scaffold: folders from ARCHITECTURE section 9, `.gitignore` (db, `.env`, models, node_modules), MIT `LICENSE`, `.env.example` | all | P0 | - | DONE | Tree matches layout; `git status` clean of secrets | LICENSE deferred pending team approval (DEC-17); AGENTS.md moved back to root (DEC-16) |
 | S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | TODO | `pytest` passes a health test; `uvicorn` serves `/docs` | |
 | S-03 | Frontend skeleton: Vite + React + TS + Tailwind, router, empty pages | all | P0 | S-01 | TODO | `npm run build` succeeds; home page renders | |
 | S-04 | Makefile (`setup`, `dev`, `test`, `lint`, `train`, `seed`) | all | P1 | S-02, S-03 | TODO | `make test` runs both test suites | |

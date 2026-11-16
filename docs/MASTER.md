@@ -1,5 +1,5 @@
 # Business Sarthi: MASTER (generated)
-> Generated on 2026-11-15 by `tools/build_master.py`. **Do not edit by hand.** Edit the source files, then run `python tools/build_master.py`.
+> Generated on 2026-11-16 by `tools/build_master.py`. **Do not edit by hand.** Edit the source files, then run `python tools/build_master.py`.
 > Contents: `AGENTS.md`, `docs/CHECKPOINTS.md`, `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/ML_PLAN.md`, `docs/DECISIONS.md`, `docs/CHANGELOG.md`.
 
 
@@ -104,12 +104,12 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 
 ```yaml
 project_status:
-  phase: "0 - documentation only; no application code yet"
+  phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "none (start with S-01)"
+  current_focus: "S-02"
   blockers: []
   demo_path_ready: false
-  notes: "All checkpoints TODO. Pick the first TODO whose dependencies are DONE."
+  notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
 ```
 
 **Status values:** `TODO` · `IN_PROGRESS` · `DONE` · `BLOCKED` · `DROPPED`
@@ -122,7 +122,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| S-01 | Repo scaffold: folders from ARCHITECTURE section 9, `.gitignore` (db, `.env`, models, node_modules), MIT `LICENSE`, `.env.example` | all | P0 | - | TODO | Tree matches layout; `git status` clean of secrets | LICENSE needs team approval |
+| S-01 | Repo scaffold: folders from ARCHITECTURE section 9, `.gitignore` (db, `.env`, models, node_modules), MIT `LICENSE`, `.env.example` | all | P0 | - | DONE | Tree matches layout; `git status` clean of secrets | LICENSE deferred pending team approval (DEC-17); AGENTS.md moved back to root (DEC-16) |
 | S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | TODO | `pytest` passes a health test; `uvicorn` serves `/docs` | |
 | S-03 | Frontend skeleton: Vite + React + TS + Tailwind, router, empty pages | all | P0 | S-01 | TODO | `npm run build` succeeds; home page renders | |
 | S-04 | Makefile (`setup`, `dev`, `test`, `lint`, `train`, `seed`) | all | P1 | S-02, S-03 | TODO | `make test` runs both test suites | |
@@ -914,6 +914,10 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-13 | 2026-11-16 | Business models (freemium, quarterly plan, loan referrals, supplier tie-ups, institutional licence) are proposals, out of prototype scope; referral revenue must never influence advice rules | Keep the prototype focused; avoid conflicts of interest | Building billing now | ACTIVE |
 | DEC-14 | 2026-11-16 | Branch and commit convention: one checkpoint per commit group, message `CP-<ID>: summary` | Makes progress traceable | Free-form commits | ACTIVE |
 | DEC-15 | 2026-11-16 | Voice: browser Web Speech API with text fallback | Free and no server cost; works for Hindi on supported browsers | Paid speech APIs | ACTIVE |
+| DEC-16 | 2026-11-16 | `AGENTS.md` lives at the repo root (moved back from `docs/`) | Matches ARCHITECTURE section 9; `tools/build_master.py` expects it there | Keep in `docs/` and change the script | ACTIVE |
+| DEC-17 | 2026-11-16 | No `LICENSE` file yet; add one after team approval | The team has not approved a licence | MIT, Apache-2.0 now | ACTIVE |
+| DEC-18 | 2026-11-16 | Backend runs on Python 3.14 in `backend/.venv`; `requires-python >=3.11` | 3.14 is installed on the dev machine; 3.11+ stays supported for teammates | Install 3.12 | ACTIVE |
+| DEC-19 | 2026-11-16 | Dependencies: pip + venv with exact `==` pins in `backend/pyproject.toml` | No extra tooling needed | uv, Poetry | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -925,6 +929,13 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: S-01 repo scaffold
+
+- Moved `AGENTS.md` back to the repo root so `tools/build_master.py` works again (it was broken by the rename into `docs/`). DEC-16.
+- Created the ARCHITECTURE section 9 folder tree (`backend/`, `frontend/`, `data/`, `eval/`) with `.gitkeep` placeholders.
+- Added `.gitignore` (`.env`, `*.db`, `backend/data/models`, `node_modules`, `__pycache__`, `.venv`, plus `data/synthetic/out/` for generated data) and `.env.example` with empty values only.
+- No `LICENSE` yet; waiting for team approval (DEC-17). Python and dependency decisions recorded as DEC-18 and DEC-19.
 
 ## 2026-11-16: documentation pack created (no checkpoint)
 
