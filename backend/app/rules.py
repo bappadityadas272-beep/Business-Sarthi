@@ -41,7 +41,14 @@ class Condition(_Strict):
     indicator: INDICATORS
     op: Op
     value: float
-    for_months: int | None = Field(default=None, ge=1)
+    for_months: int | None = Field(default=None, ge=1, le=3)   # the N most recent 30-day blocks (DEC-64)
+    pass_when_no_loan: bool = False                            # dscr only: met when the shop has no loan (DEC-64)
+
+    @model_validator(mode="after")
+    def _dscr_only(self):
+        if (self.for_months or self.pass_when_no_loan) and self.indicator != "dscr":
+            raise ValueError("for_months and pass_when_no_loan are only supported for dscr")
+        return self
 
 
 # ---- review_rules.yaml ----
@@ -60,6 +67,8 @@ class DecisionRule(_Strict):
 class ReviewRules(_Header):
     window_days: int = Field(gt=0)
     max_actions: int = Field(ge=1, le=5)
+    min_block_logged_days: int = Field(ge=1, le=30)
+    min_completeness_for_medium_confidence: float = Field(ge=0, le=1)
     decisions: list[DecisionRule]
 
     @model_validator(mode="after")
@@ -67,6 +76,8 @@ class ReviewRules(_Header):
         names = [d.decision for d in self.decisions]
         if sorted(names) != ["grow", "hold", "pivot"]:
             raise ValueError(f"need exactly one each of grow/hold/pivot, got {names}")
+        if self.window_days != 90:
+            raise ValueError("window_days must be 90: the engine works with three 30-day blocks")
         if self.decisions[-1].match != "always":
             raise ValueError("last decision must be the 'always' fallback")
         return self

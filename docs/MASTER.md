@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-08 review engine"
+  current_focus: "B-08 alerts store"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -165,7 +165,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | DONE | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | Endpoint + service; margin, wage and payback extension are labelled assumptions (DEC-48 to DEC-52); confidence low under mock OSM by design |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | DONE | Backtest shows blend beats prior-only after 2 months; handles gaps | Met on synthetic shops: blend WAPE 8.8% vs prior-only 19.5% at 2 months (k = 10, DEC-55). Honest notes in EVAL_REPORT |
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | DONE | ROP, reorder qty, dead and overstock flags match hand-calculated cases | Hand-calculated cases pass (17 tests). Simulation on synthetic shops: 4.05 vs 9.57 stock-out days per 30 at 0.95x stock, met only after DEC-59 (first version 1.44x, missed) |
-| M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | TODO | 20 labelled scenarios all give the expected decision | |
+| M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | DONE | 20 labelled scenarios all give the expected decision | All 20 hand-labelled scenarios give the expected decision; no threshold changed. 30 tests. Thresholds are untested assumptions; DEC-66 details await confirmation |
 | M-09 | Alert engine (ML6) | F6 | P0 | B-05, B-07, M-07, D-04 | DONE | Injected dips detected (recall at least 90%); false alarms under 1 per shop per month | Synthetic test shops: recall 95.3% on dips of 35% or deeper within 14 days, 0 false alarms (clean generator; see EVAL_REPORT notes). 17 tests. Not yet wired to the API (B-08, B-09) |
 | M-10 | Expansion simulator (ML9) | F8 | P2 | M-06 | TODO | Returns payback range and P(payback<12m) for 3 options | Assumptions flagged in output |
 | M-11 | Pricing helper (ML10) | F9 | P2 | B-06 | TODO | Flags categories below target margin | |
@@ -606,6 +606,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `GET/POST /api/shops/{id}/assets` | Asset list | B |
 | `GET/POST /api/shops/{id}/loans` | Loan and EMI | B |
 | `GET /api/shops/{id}/alerts`, `POST .../alerts/{id}/resolve` | Alerts | B |
+| `PATCH /api/shops/{id}` | Set or clear `opening_cash` (DEC-65) | B |
 | `POST /api/shops/{id}/reviews/run` | Run review now (also scheduler) | M |
 | `GET /api/shops/{id}/reviews/latest` and `/reviews` | Read reviews | M |
 | `POST /api/shops/{id}/simulate` | Expansion simulator | M |
@@ -825,6 +826,8 @@ Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
 | `stockout_days`, `dead_stock_value` | from ML4 |
 | `data_completeness` | share of days logged |
 
+**How the indicators are computed (M-08; DEC-64, DEC-65, DEC-66):** the period is the 90 days ending yesterday, cut into three 30-day blocks; days before the launch date are not expected. A day without a log is missing, not zero: sales and purchases are scaled up for unlogged days, expenses are taken as logged. Operating profit = logged sales - logged purchases - logged expenses (the owner must log rent and wages; if no expense is logged the review says the profit is overstated). `revenue_vs_p50` compares logged days with the P50 of the same days. "`dscr < 1.0` for 2 months" means in both of the two most recent blocks. With no loan, `dscr` is not applicable: it cannot trigger pivot and counts as met for grow. The cash buffer = opening cash typed by the owner + logged sales - purchases - expenses - instalments due so far; if opening cash was never entered, the runway is unknown and that pivot rule is skipped, with a note. An unknown indicator never satisfies a condition. Confidence is `low` or `medium`, never `high`, because the thresholds are untested assumptions.
+
 **Decision table** (`data/rules/review_rules.yaml`; thresholds are our initial assumptions, to tune with pilot data; document each change in `DECISIONS.md`):
 
 | Decision | Condition (first match wins, top to bottom) |
@@ -968,6 +971,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-61 | 2026-11-17 | ML6 evaluation, chosen by the human: the 90% recall target is judged on injected dips of 35% or deeper; a dip counts as detected when the alert holds on at least one of its first 14 days; recall on milder dips (25% to 35%) is reported but not judged | The rule fires below 70% of the base, so a 30% dip is a coin flip by design; an alert that comes late is of little use | Judge on all dips from 25%; judge from 30%; count an alert at any time during the dip | ACTIVE |
 | DEC-62 | 2026-11-17 | No EMI alert when cash is unknown (the owner never entered an opening cash figure), chosen by the human | A critical alert must not rest on a guess; same treatment as the cash rule of the review | An info reminder that an EMI is due, without a cash claim | ACTIVE |
 | DEC-63 | 2026-11-17 | Alert engine details **taken by the assistant and to be confirmed by the human**: all rules use finished days only (up to yesterday); robust z = (median of the last 7 days - median of the 28 base days) / (1.4826 x MAD of the base days), on daily shop totals; a day without a log is missing, not zero; the dip rule needs 4 logged days of 7 and 14 of 28; low stock and dead stock are one alert per shop each, listing up to 5 items and the count; projected cash = cash today + days to the due date x average daily net flow of the last 28 logged days; instalments due in the same window are added up; the data gap counts from the launch date when nothing was ever logged; in the evaluation one false alarm is one unbroken run of alert days; the loader refuses rule files in which the two dead-stock day counts differ | ML_PLAN section 7 names the rules but not these details; each is the simplest reading | z on 7-day averages; one alert per item; current cash without projection | ACTIVE |
+| DEC-64 | 2026-11-17 | Review engine, chosen by the human: (a) "dscr < 1.0 for 2 months" means the two most recent 30-day blocks of the 90-day period are both below 1.0; (b) a shop without a loan can grow: the dscr condition counts as met for grow (`pass_when_no_loan: true` in `review_rules.yaml`) and cannot trigger pivot, and the review carries the note `no_loan_dscr_not_applicable`; (c) operating profit = logged sales - logged purchases - logged expenses, nothing is added from the shop profile, so the owner logs rent and wages as expenses | One bad month must not trigger a pivot; a debt-free shop should not be blocked by a ratio that does not exist; counting only logged costs avoids double counting | Any 2 of 3 blocks; no grow without a loan; add rent from the profile | ACTIVE |
+| DEC-65 | 2026-11-17 | Cash buffer, chosen by the human: the owner may enter `opening_cash` (new optional shop column, migration 0005, `PATCH /api/shops/{id}`); cash = opening cash + logged sales - purchases - expenses - instalments due since launch. If it was never entered, the cash runway is unknown, that pivot rule is skipped and the review notes it. If the cash figure is zero or negative while the period is cash-positive, the runway stays unknown, the review asks the owner to check the opening cash, and the other indicators decide | No decision on a guessed cash figure (rule 1) | Assume zero opening cash; use the budget as opening cash; pivot on negative cash | ACTIVE |
+| DEC-66 | 2026-11-17 | Review engine details **taken by the assistant and to be confirmed by the human**: the period ends yesterday; days before launch are not expected; sales and purchases are scaled up for unlogged days, expenses are not; `revenue_vs_p50` compares logged days with the set-up forecast P50 of the same days (monthly P50 spread evenly over the days); `growth_rate` = least-squares slope of the blocks' average daily sales / their mean; the runway outflow includes the monthly EMI and instalments are assumed paid on their due dates; a block with fewer than 7 logged days has no values; indicators are rounded (4 decimals, runway 1) before the rules are applied; an unknown indicator never satisfies a condition; hold reasons are the grow conditions that failed (data completeness first); confidence is `medium` at best and `low` when completeness is under 0.7, no forecast exists, or dscr is unknown although a loan exists; no data at all gives hold with low confidence; a loan stored without dates counts towards the EMI but not towards past instalments; running a review twice for the same period replaces the row; `review` gets columns `confidence`, `details`, `created_on` | ML_PLAN section 7 names the indicators but not these details; each is the simplest reading | Missing days as zero sales; confidence `high` when all data is present; one review row per run | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -979,6 +985,26 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: M-08 review engine (ML5), endpoints and 20 hand-labelled scenarios
+
+- **Checkpoint:** M-08 DONE. All 20 scenarios in `backend/tests/review_scenarios.yaml` give the expected decision.
+  No threshold in `review_rules.yaml` was changed. The thresholds remain **untested assumptions**.
+- `backend/app/ml/review.py`: pure functions `indicators`, `holds`, `decide`, `pick_actions`, `review`. Reasons, actions
+  and notes are keys with values; no sentence is built on the server and no LLM is involved.
+- `backend/app/services/review.py` gathers logs, the latest set-up forecast, loans, cash and stock advice, and stores
+  the review. `backend/app/services/stock.py` now holds the stock-advice query (shared with the stock endpoint).
+- Endpoints: `POST /api/shops/{id}/reviews/run`, `GET /api/shops/{id}/reviews/latest`, `GET /api/shops/{id}/reviews`,
+  `PATCH /api/shops/{id}` (opening cash only).
+- Migration `0005`: `shop.opening_cash`; `review.confidence`, `review.details`, `review.created_on`.
+- `review_rules.yaml`: `min_block_logged_days`, `min_completeness_for_medium_confidence`, `pass_when_no_loan` on the
+  grow dscr condition. The loader accepts `for_months` and `pass_when_no_loan` only for dscr and needs a 90-day window.
+- Tests: `tests/test_review.py` (30: the 20 scenarios, helpers, endpoints). Full suite 199 passed.
+- **Known gaps:** `actions.yaml` has no action for a pivot caused only by a short cash runway (the list comes back
+  empty); 5 of its 8 actions are still proposals awaiting team approval. The review compares with the set-up forecast
+  only, as ML_PLAN says; it does not use the re-forecast.
+- **Next person:** DEC-66 lists details the assistant chose; the human has not yet confirmed them. The demo seed (D-05)
+  must log rent and wages as expenses and set an opening cash, or the review will overstate profit (DEC-64).
 
 ## 2026-11-17: M-09 alert engine (ML6) with evaluation on injected dips
 

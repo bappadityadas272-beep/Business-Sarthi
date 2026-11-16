@@ -42,6 +42,13 @@ class ShopIn(BaseModel):
     monthly_rent: float = Field(ge=0, le=1e7)
     staff_count: int = Field(default=0, ge=0, le=50)
     launch_date: date | None = None                  # None = idea stage, not opened yet
+    opening_cash: float | None = Field(default=None, ge=0, le=1e9)   # cash at launch; None = not told (DEC-65)
+
+
+class ShopPatch(BaseModel):
+    """Fields the owner may change later. Only opening cash for now (DEC-65)."""
+    model_config = ConfigDict(extra="forbid")
+    opening_cash: float | None = Field(ge=0, le=1e9)
 
 
 class ShopOut(ShopIn):

@@ -2,6 +2,26 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: M-08 review engine (ML5), endpoints and 20 hand-labelled scenarios
+
+- **Checkpoint:** M-08 DONE. All 20 scenarios in `backend/tests/review_scenarios.yaml` give the expected decision.
+  No threshold in `review_rules.yaml` was changed. The thresholds remain **untested assumptions**.
+- `backend/app/ml/review.py`: pure functions `indicators`, `holds`, `decide`, `pick_actions`, `review`. Reasons, actions
+  and notes are keys with values; no sentence is built on the server and no LLM is involved.
+- `backend/app/services/review.py` gathers logs, the latest set-up forecast, loans, cash and stock advice, and stores
+  the review. `backend/app/services/stock.py` now holds the stock-advice query (shared with the stock endpoint).
+- Endpoints: `POST /api/shops/{id}/reviews/run`, `GET /api/shops/{id}/reviews/latest`, `GET /api/shops/{id}/reviews`,
+  `PATCH /api/shops/{id}` (opening cash only).
+- Migration `0005`: `shop.opening_cash`; `review.confidence`, `review.details`, `review.created_on`.
+- `review_rules.yaml`: `min_block_logged_days`, `min_completeness_for_medium_confidence`, `pass_when_no_loan` on the
+  grow dscr condition. The loader accepts `for_months` and `pass_when_no_loan` only for dscr and needs a 90-day window.
+- Tests: `tests/test_review.py` (30: the 20 scenarios, helpers, endpoints). Full suite 199 passed.
+- **Known gaps:** `actions.yaml` has no action for a pivot caused only by a short cash runway (the list comes back
+  empty); 5 of its 8 actions are still proposals awaiting team approval. The review compares with the set-up forecast
+  only, as ML_PLAN says; it does not use the re-forecast.
+- **Next person:** DEC-66 lists details the assistant chose; the human has not yet confirmed them. The demo seed (D-05)
+  must log rent and wages as expenses and set an opening cash, or the review will overstate profit (DEC-64).
+
 ## 2026-11-17: M-09 alert engine (ML6) with evaluation on injected dips
 
 - **Checkpoint:** M-09 DONE. On synthetic test shops: recall 95.3% on injected dips of 35% or deeper within 14 days

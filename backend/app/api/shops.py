@@ -2,9 +2,9 @@
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from app.api.deps import ConsentedUser, CurrentUser, Db, OwnShop
+from app.api.deps import ConsentedUser, CurrentUser, Db, OwnShop, OwnShopConsented
 from app.models import Shop
-from app.schemas.profile import ShopIn, ShopOut
+from app.schemas.profile import ShopIn, ShopOut, ShopPatch
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
@@ -24,4 +24,12 @@ def list_shops(user: CurrentUser, db: Db) -> list[Shop]:
 
 @router.get("/{shop_id}", response_model=ShopOut)
 def read_shop(shop: OwnShop) -> Shop:
+    return shop
+
+
+@router.patch("/{shop_id}", response_model=ShopOut)
+def update_shop(body: ShopPatch, shop: OwnShopConsented, db: Db) -> Shop:
+    """Set or clear the opening cash (DEC-65). The cash runway of the review needs it."""
+    shop.opening_cash = body.opening_cash
+    db.commit()
     return shop

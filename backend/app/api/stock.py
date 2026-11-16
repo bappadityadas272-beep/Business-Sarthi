@@ -4,7 +4,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import Db, OwnShop, OwnShopConsented
-from app.ml import reorder
 from app.models import Asset, StockItem, StockMove
 from app.rules import get_rules
 from app.schemas.records import (
@@ -17,6 +16,7 @@ from app.schemas.records import (
     StockItemOut,
 )
 from app.services import clock
+from app.services import stock as stock_service
 
 router = APIRouter(prefix="/shops", tags=["stock"])
 OUTWARD = ("sale", "waste")
@@ -42,12 +42,7 @@ def list_stock(shop: OwnShop, db: Db) -> list[dict]:
 def stock_advice(shop: OwnShopConsented, db: Db) -> dict:
     """Reorder list, dead stock, overstock and ABC tags (M-07). Computed on request; nothing is stored."""
     rule = get_rules().stock
-    items = [{"id": i.id, "name": i.name, "category": i.category, "unit": i.unit, "cost": i.cost, "price": i.price}
-             for i in db.scalars(select(StockItem).where(StockItem.shop_id == shop.id).order_by(StockItem.id))]
-    rows = db.execute(select(StockMove.item_id, StockMove.day, StockMove.qty, StockMove.kind)
-                      .join(StockItem, StockItem.id == StockMove.item_id).where(StockItem.shop_id == shop.id))
-    moves = [{"item_id": r.item_id, "day": r.day, "qty": r.qty, "kind": r.kind} for r in rows]
-    out = reorder.advise(items, moves, clock.today(), rule)
+    out = stock_service.advice(db, shop.id, clock.today(), rule)
     out["settings"] = {k: getattr(rule, k) for k in (
         "z", "lead_time_days", "cover_days", "dead_no_sale_days", "overstock_cover_days", "demand_halflife_days",
         "std_window_days", "new_item_below_days", "abc_a_share", "abc_b_share", "abc_window_days",

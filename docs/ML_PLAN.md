@@ -102,6 +102,8 @@
 | `stockout_days`, `dead_stock_value` | from ML4 |
 | `data_completeness` | share of days logged |
 
+**How the indicators are computed (M-08; DEC-64, DEC-65, DEC-66):** the period is the 90 days ending yesterday, cut into three 30-day blocks; days before the launch date are not expected. A day without a log is missing, not zero: sales and purchases are scaled up for unlogged days, expenses are taken as logged. Operating profit = logged sales - logged purchases - logged expenses (the owner must log rent and wages; if no expense is logged the review says the profit is overstated). `revenue_vs_p50` compares logged days with the P50 of the same days. "`dscr < 1.0` for 2 months" means in both of the two most recent blocks. With no loan, `dscr` is not applicable: it cannot trigger pivot and counts as met for grow. The cash buffer = opening cash typed by the owner + logged sales - purchases - expenses - instalments due so far; if opening cash was never entered, the runway is unknown and that pivot rule is skipped, with a note. An unknown indicator never satisfies a condition. Confidence is `low` or `medium`, never `high`, because the thresholds are untested assumptions.
+
 **Decision table** (`data/rules/review_rules.yaml`; thresholds are our initial assumptions, to tune with pilot data; document each change in `DECISIONS.md`):
 
 | Decision | Condition (first match wins, top to bottom) |

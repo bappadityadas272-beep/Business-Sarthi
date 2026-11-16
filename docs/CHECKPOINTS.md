@@ -6,7 +6,7 @@
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-08 review engine"
+  current_focus: "B-08 alerts store"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -65,7 +65,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | DONE | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | Endpoint + service; margin, wage and payback extension are labelled assumptions (DEC-48 to DEC-52); confidence low under mock OSM by design |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | DONE | Backtest shows blend beats prior-only after 2 months; handles gaps | Met on synthetic shops: blend WAPE 8.8% vs prior-only 19.5% at 2 months (k = 10, DEC-55). Honest notes in EVAL_REPORT |
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | DONE | ROP, reorder qty, dead and overstock flags match hand-calculated cases | Hand-calculated cases pass (17 tests). Simulation on synthetic shops: 4.05 vs 9.57 stock-out days per 30 at 0.95x stock, met only after DEC-59 (first version 1.44x, missed) |
-| M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | TODO | 20 labelled scenarios all give the expected decision | |
+| M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | DONE | 20 labelled scenarios all give the expected decision | All 20 hand-labelled scenarios give the expected decision; no threshold changed. 30 tests. Thresholds are untested assumptions; DEC-66 details await confirmation |
 | M-09 | Alert engine (ML6) | F6 | P0 | B-05, B-07, M-07, D-04 | DONE | Injected dips detected (recall at least 90%); false alarms under 1 per shop per month | Synthetic test shops: recall 95.3% on dips of 35% or deeper within 14 days, 0 false alarms (clean generator; see EVAL_REPORT notes). 17 tests. Not yet wired to the API (B-08, B-09) |
 | M-10 | Expansion simulator (ML9) | F8 | P2 | M-06 | TODO | Returns payback range and P(payback<12m) for 3 options | Assumptions flagged in output |
 | M-11 | Pricing helper (ML10) | F9 | P2 | B-06 | TODO | Flags categories below target margin | |

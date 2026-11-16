@@ -51,6 +51,7 @@ class Shop(Base):
     staff_count: Mapped[int] = mapped_column(Integer, default=0)
     launch_date: Mapped[date | None] = mapped_column(Date)
     is_demo: Mapped[bool] = mapped_column(default=False)
+    opening_cash: Mapped[float | None] = mapped_column(Float)       # DEC-65: cash at launch, typed by the owner
     user: Mapped[User] = relationship(back_populates="shops")
     daily_logs: Mapped[list["DailyLog"]] = relationship(cascade="all, delete-orphan")
     stock_items: Mapped[list["StockItem"]] = relationship(cascade="all, delete-orphan")
@@ -94,6 +95,9 @@ class Review(Base):
     indicators: Mapped[dict] = mapped_column(JSON)
     reasons: Mapped[list] = mapped_column(JSON)
     actions: Mapped[list] = mapped_column(JSON)
+    confidence: Mapped[str] = mapped_column(String(8), default="low")   # low | medium (never high, DEC-66)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)            # notes and confidence reasons (keys)
+    created_on: Mapped[date | None] = mapped_column(Date)                # the day the review was run
 
 
 class Loan(Base):

@@ -1,0 +1,373 @@
+# M-08: 20 hand-labelled review scenarios. Every expected value was worked out by hand (see `why`), not copied
+# from the program. If a scenario fails, fix the code or the hand calculation; NEVER change a threshold to pass.
+#
+# How a scenario becomes input (backend/tests/test_review.py):
+# - The period is 90 days in three 30-day blocks, oldest first. In each block `logged` days have a log
+#   (`pattern: first` = the first n days of the block, `alternate` = every second day).
+#   `sales` and `purchases` are PER LOGGED DAY; `expenses` is the block TOTAL, put on the first logged day.
+# - `p50_per_day`: the set-up forecast P50 per day (null = no forecast). `emi`: total monthly EMI (null = no loan).
+# - `cash`: the cash figure today (null = the owner never entered opening cash).
+#
+# Formulas (backend/app/ml/review.py):
+#   profit per month = [(sales - purchases) x expected days / logged days - expenses] x 30 / expected days
+#   dscr = profit per month / emi          revenue_vs_p50 = logged sales / P50 of the same logged days
+#   net flow per day = profit per month / 30 - emi / 30;  runway = cash / -net flow (only when negative)
+#   growth = slope of the three block averages / their mean = (block3 - block1) / 2 / mean
+# Rules: pivot if dscr < 1.0 in the 2 latest blocks OR revenue_vs_p50 < 0.6 OR runway < 30;
+#        grow if revenue_vs_p50 >= 1.0 AND dscr >= 1.5 (or no loan) AND growth > 0 AND completeness >= 0.7; else hold.
+
+- name: healthy_shop_grows
+  why: >
+    Sales 1000/1100/1200 against P50 1000: 99000/90000 = 1.1. Margin 150+165+180 = 495 a day x 30 = 14850, less
+    expenses 6000 = 8850 over 3 months = 2950 a month, EMI 1000: dscr 2.95. Growth (1200-1000)/2/1100 = 0.0909.
+    All logged. Every grow condition holds.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 30, sales: 1100, purchases: 935, expenses: 2000}
+    - {logged: 30, sales: 1200, purchases: 1020, expenses: 2000}
+  p50_per_day: 1000
+  emi: 1000
+  cash: 50000
+  expect:
+    decision: grow
+    reasons: [revenue_vs_p50, dscr, growth_rate]
+    actions: [try_expansion_simulator]
+    confidence: medium
+    indicators: {revenue_vs_p50: 1.1, dscr: 2.95, growth_rate: 0.0909, data_completeness: 1.0, gross_margin: 0.15}
+    dscr_by_month: [2.5, 2.95, 3.4]
+
+- name: grow_exactly_on_every_threshold
+  why: >
+    21 of 30 days logged in each block: 63/90 = 0.7. Sales 900/1000/1100 per logged day against P50 1000:
+    63000/63000 = 1.0. Margin 100 a day x 63 = 6300, scaled x 90/63 = 9000, less expenses 4500 = 4500 over
+    3 months = 1500 a month, EMI 1000: dscr 1.5. Growth (1100-900)/2/1000 = 0.1. On the line counts for grow.
+  blocks:
+    - {logged: 21, sales: 900, purchases: 800, expenses: 1500}
+    - {logged: 21, sales: 1000, purchases: 900, expenses: 1500}
+    - {logged: 21, sales: 1100, purchases: 1000, expenses: 1500}
+  p50_per_day: 1000
+  emi: 1000
+  cash: null
+  expect:
+    decision: grow
+    actions: [try_expansion_simulator, extend_hours]
+    confidence: medium
+    indicators: {revenue_vs_p50: 1.0, dscr: 1.5, growth_rate: 0.1, data_completeness: 0.7}
+
+- name: no_setup_forecast
+  why: >
+    Same healthy numbers as the first scenario, but there is no forecast to compare with, so revenue_vs_p50 is
+    unknown. An unknown value never satisfies a condition: not pivot, not grow. Hold, low confidence.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 30, sales: 1100, purchases: 935, expenses: 2000}
+    - {logged: 30, sales: 1200, purchases: 1020, expenses: 2000}
+  p50_per_day: null
+  emi: 1000
+  cash: 50000
+  expect:
+    decision: hold
+    reasons: [revenue_vs_p50]
+    actions: []
+    confidence: low
+    indicators: {revenue_vs_p50: null, dscr: 2.95}
+
+- name: flat_sales_growth_exactly_zero
+  why: >
+    Sales flat at 1000 = P50 (1.0). Profit 150 x 30 - 2000 = 2500 a month, EMI 1000: dscr 2.5. Growth is exactly 0,
+    and grow needs growth above 0. Hold.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 30, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 30, sales: 1000, purchases: 850, expenses: 2000}
+  p50_per_day: 1000
+  emi: 1000
+  cash: 50000
+  expect:
+    decision: hold
+    reasons: [growth_rate]
+    actions: [extend_hours]
+    confidence: medium
+    indicators: {revenue_vs_p50: 1.0, dscr: 2.5, growth_rate: 0.0}
+
+- name: good_numbers_but_only_two_thirds_logged
+  why: >
+    The first scenario with 20 of 30 days logged per block: completeness 60/90 = 0.6667, below 0.7.
+    Per logged day nothing changed: revenue 1.1, dscr 2.95 (margin 495 x 20 = 9900, x 90/60 = 14850, - 6000).
+    Not enough data to say grow. Hold, low confidence, advice to log daily.
+  blocks:
+    - {logged: 20, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 20, sales: 1100, purchases: 935, expenses: 2000}
+    - {logged: 20, sales: 1200, purchases: 1020, expenses: 2000}
+  p50_per_day: 1000
+  emi: 1000
+  cash: 50000
+  expect:
+    decision: hold
+    reasons: [data_completeness]
+    actions: [log_daily]
+    confidence: low
+    indicators: {revenue_vs_p50: 1.1, dscr: 2.95, data_completeness: 0.6667}
+
+- name: revenue_half_of_forecast
+  why: >
+    Sales 500 against P50 1000 = 0.5, below 0.6. Pivot. No loan, cash not known.
+  blocks:
+    - {logged: 30, sales: 500, purchases: 425, expenses: 1000}
+    - {logged: 30, sales: 500, purchases: 425, expenses: 1000}
+    - {logged: 30, sales: 500, purchases: 425, expenses: 1000}
+  p50_per_day: 1000
+  emi: null
+  cash: null
+  expect:
+    decision: pivot
+    reasons: [revenue_vs_p50]
+    actions: [cut_fixed_costs]
+    confidence: medium
+    indicators: {revenue_vs_p50: 0.5, dscr: null, cash_runway_days: null}
+
+- name: revenue_exactly_60_percent
+  why: >
+    Sales 600 against 1000 = 0.6 exactly. The rule says below 0.6, so this is NOT pivot. Not grow either
+    (0.6 < 1.0, growth 0). Hold.
+  blocks:
+    - {logged: 30, sales: 600, purchases: 510, expenses: 1000}
+    - {logged: 30, sales: 600, purchases: 510, expenses: 1000}
+    - {logged: 30, sales: 600, purchases: 510, expenses: 1000}
+  p50_per_day: 1000
+  emi: null
+  cash: null
+  expect:
+    decision: hold
+    reasons: [revenue_vs_p50, growth_rate]
+    actions: [extend_hours]
+    indicators: {revenue_vs_p50: 0.6}
+
+- name: emi_not_covered_in_the_last_two_months
+  why: >
+    EMI 5000. Block profits: 300x30-1000 = 8000 (1.6), 200x30-2000 = 4000 (0.8), 200x30-1500 = 4500 (0.9).
+    The two latest blocks are both below 1.0. Pivot. Whole period: 16500/3 = 5500 a month, dscr 1.1.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 700, expenses: 1000}
+    - {logged: 30, sales: 1000, purchases: 800, expenses: 2000}
+    - {logged: 30, sales: 1000, purchases: 800, expenses: 1500}
+  p50_per_day: 1000
+  emi: 5000
+  cash: null
+  expect:
+    decision: pivot
+    reasons: [dscr]
+    actions: [check_working_capital_scheme]
+    indicators: {dscr: 1.1, revenue_vs_p50: 1.0}
+    dscr_by_month: [1.6, 0.8, 0.9]
+
+- name: one_bad_month_only
+  why: >
+    EMI 5000. Block dscr 1.6, 0.8, 1.6: only the middle month was bad, the latest recovered. Not pivot.
+    Whole period 20000/3 = 6666.67 a month, dscr 1.3333 < 1.5 and growth 0: not grow. Hold.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 700, expenses: 1000}
+    - {logged: 30, sales: 1000, purchases: 800, expenses: 2000}
+    - {logged: 30, sales: 1000, purchases: 700, expenses: 1000}
+  p50_per_day: 1000
+  emi: 5000
+  cash: null
+  expect:
+    decision: hold
+    reasons: [dscr, growth_rate]
+    actions: [extend_hours]
+    indicators: {dscr: 1.3333}
+    dscr_by_month: [1.6, 0.8, 1.6]
+
+- name: two_bad_months_then_recovery
+  why: >
+    Block dscr 0.8, 0.8, 1.6. Two bad months, but the rule looks at the two MOST RECENT blocks (DEC-64) and the
+    latest is fine. Not pivot. Whole period 16000/3/5000 = 1.0667. Hold.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 800, expenses: 2000}
+    - {logged: 30, sales: 1000, purchases: 800, expenses: 2000}
+    - {logged: 30, sales: 1000, purchases: 700, expenses: 1000}
+  p50_per_day: 1000
+  emi: 5000
+  cash: null
+  expect:
+    decision: hold
+    reasons: [dscr, growth_rate]
+    actions: [check_working_capital_scheme, extend_hours]
+    indicators: {dscr: 1.0667}
+    dscr_by_month: [0.8, 0.8, 1.6]
+
+- name: dscr_exactly_one_for_two_months
+  why: >
+    EMI 5000. Latest two blocks: 200x30-1000 = 5000, dscr exactly 1.0. The rule says below 1.0: NOT pivot.
+    Whole period 18000/3/5000 = 1.2. Hold. (1.2 is not below 1.2, so no working-capital action.)
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 700, expenses: 1000}
+    - {logged: 30, sales: 1000, purchases: 800, expenses: 1000}
+    - {logged: 30, sales: 1000, purchases: 800, expenses: 1000}
+  p50_per_day: 1000
+  emi: 5000
+  cash: null
+  expect:
+    decision: hold
+    reasons: [dscr, growth_rate]
+    actions: [extend_hours]
+    indicators: {dscr: 1.2}
+    dscr_by_month: [1.6, 1.0, 1.0]
+
+- name: cash_runs_out_in_20_days
+  why: >
+    No loan. Margin 50 a day, expenses 3000 a month = 100 a day: net flow -50 a day. Cash 1000 lasts 20 days,
+    below 30. Pivot, although sales match the forecast (1.0). No action in actions.yaml fits this case.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+  p50_per_day: 1000
+  emi: null
+  cash: 1000
+  expect:
+    decision: pivot
+    reasons: [cash_runway_days]
+    actions: []
+    indicators: {cash_runway_days: 20.0, revenue_vs_p50: 1.0, gross_margin: 0.05}
+
+- name: cash_runway_exactly_30_days
+  why: >
+    Same shop with cash 1500: 1500/50 = 30 days exactly. The rule says below 30. NOT pivot. Growth 0. Hold.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+  p50_per_day: 1000
+  emi: null
+  cash: 1500
+  expect:
+    decision: hold
+    reasons: [growth_rate]
+    actions: [extend_hours]
+    indicators: {cash_runway_days: 30.0}
+
+- name: losing_cash_but_opening_cash_never_entered
+  why: >
+    Same loss-making shop, cash unknown. The runway rule is skipped (no pivot on a guess) and a note says so.
+    Nothing else triggers pivot. Hold.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+    - {logged: 30, sales: 1000, purchases: 950, expenses: 3000}
+  p50_per_day: 1000
+  emi: null
+  cash: null
+  expect:
+    decision: hold
+    reasons: [growth_rate]
+    notes: [cash_unknown_runway_rule_skipped]
+    indicators: {cash_runway_days: null}
+
+- name: strong_sales_but_cash_figure_negative
+  why: >
+    The healthy first scenario, but the cash figure is -20000 while the period is cash-positive. Runway is defined
+    only for a negative flow, so it is unknown; the human chose (DEC-65) to add a note to check the opening cash
+    and let the other indicators decide. They all say grow.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 30, sales: 1100, purchases: 935, expenses: 2000}
+    - {logged: 30, sales: 1200, purchases: 1020, expenses: 2000}
+  p50_per_day: 1000
+  emi: 1000
+  cash: -20000
+  expect:
+    decision: grow
+    notes: [cash_negative_check_opening_cash]
+    indicators: {cash_runway_days: null, dscr: 2.95}
+
+- name: strong_sales_but_burning_cash
+  why: >
+    Sales 1200 against P50 1000 (1.2), but purchases 1250 a day exceed sales. No loan. Net flow
+    (-50 x 90 - 6000)/90 = -116.67 a day; cash 2000 lasts 17.1 days, below 30. Pivot despite strong sales.
+  blocks:
+    - {logged: 30, sales: 1200, purchases: 1250, expenses: 2000}
+    - {logged: 30, sales: 1200, purchases: 1250, expenses: 2000}
+    - {logged: 30, sales: 1200, purchases: 1250, expenses: 2000}
+  p50_per_day: 1000
+  emi: null
+  cash: 2000
+  expect:
+    decision: pivot
+    reasons: [cash_runway_days]
+    indicators: {cash_runway_days: 17.1, revenue_vs_p50: 1.2}
+
+- name: healthy_shop_without_a_loan
+  why: >
+    The first scenario without a loan. dscr does not apply; the human chose (DEC-64) that the dscr condition then
+    counts as met. Revenue 1.1, growth 0.0909, all logged. Grow.
+  blocks:
+    - {logged: 30, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 30, sales: 1100, purchases: 935, expenses: 2000}
+    - {logged: 30, sales: 1200, purchases: 1020, expenses: 2000}
+  p50_per_day: 1000
+  emi: null
+  cash: null
+  expect:
+    decision: grow
+    reasons: [revenue_vs_p50, growth_rate, data_completeness]
+    actions: [try_expansion_simulator]
+    notes: [no_loan_dscr_not_applicable, cash_unknown_runway_rule_skipped]
+    indicators: {dscr: null}
+
+- name: half_the_days_missing_and_sales_poor
+  why: >
+    Every second day logged (45/90 = 0.5). On logged days sales are 500 against P50 1000: 0.5. Missing days are
+    not zero sales; the comparison uses logged days only and is still below 0.6. Pivot, but with low confidence.
+  pattern: alternate
+  blocks:
+    - {logged: 15, sales: 500, purchases: 425, expenses: 1000}
+    - {logged: 15, sales: 500, purchases: 425, expenses: 1000}
+    - {logged: 15, sales: 500, purchases: 425, expenses: 1000}
+  p50_per_day: 1000
+  emi: null
+  cash: null
+  expect:
+    decision: pivot
+    reasons: [revenue_vs_p50]
+    actions: [cut_fixed_costs, log_daily]
+    confidence: low
+    indicators: {revenue_vs_p50: 0.5, data_completeness: 0.5}
+
+- name: half_the_days_missing_and_sales_good
+  why: >
+    Every second day logged with the healthy numbers of the first scenario. Revenue stays 1.1 (missing days do
+    not count as zero), but completeness 0.5 is below 0.7: no grow on thin data. Hold, low confidence.
+  pattern: alternate
+  blocks:
+    - {logged: 15, sales: 1000, purchases: 850, expenses: 2000}
+    - {logged: 15, sales: 1100, purchases: 935, expenses: 2000}
+    - {logged: 15, sales: 1200, purchases: 1020, expenses: 2000}
+  p50_per_day: 1000
+  emi: 1000
+  cash: 50000
+  expect:
+    decision: hold
+    reasons: [data_completeness]
+    actions: [log_daily]
+    confidence: low
+    indicators: {revenue_vs_p50: 1.1, dscr: 2.95, data_completeness: 0.5}
+
+- name: no_sales_data_at_all
+  why: >
+    Nothing was logged. Every indicator is unknown and completeness is 0. Unknown never triggers pivot or grow.
+    Hold with low confidence; the only advice is to log daily.
+  blocks:
+    - {logged: 0, sales: 0, purchases: 0, expenses: 0}
+    - {logged: 0, sales: 0, purchases: 0, expenses: 0}
+    - {logged: 0, sales: 0, purchases: 0, expenses: 0}
+  p50_per_day: 1000
+  emi: 5000
+  cash: 10000
+  expect:
+    decision: hold
+    reasons: [data_completeness, revenue_vs_p50, dscr]
+    actions: [log_daily]
+    confidence: low
+    indicators: {revenue_vs_p50: null, dscr: null, growth_rate: null, cash_runway_days: null, data_completeness: 0.0}
