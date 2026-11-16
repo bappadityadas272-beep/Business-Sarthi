@@ -1,0 +1,109 @@
+"""Mock phone OTP and JWT (checkpoint B-02, DEC-10, DEC-40, DEC-41).
+
+PROTOTYPE ONLY: no SMS is sent. The code is kept in process memory (lost on restart, one process only) and is
+printed to the server log; a production build would use an SMS provider and a shared store.
+"""
+from __future__ import annotations
+
+import hmac
+import logging
+import re
+import secrets
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+
+import jwt
+
+from app.config import DEV_JWT_SECRET, get_settings
+
+log = logging.getLogger("sarthi.auth")
+
+OTP_TTL = timedelta(minutes=5)
+OTP_MAX_TRIES = 5
+TOKEN_TTL = timedelta(days=7)
+JWT_ALG = "HS256"
+DEFAULT_SECRET = DEV_JWT_SECRET
+_PHONE = re.compile(r"^\+?[1-9][0-9]{9,14}$")
+
+
+class AuthError(Exception):
+    """Raised with a stable `code` the API turns into an error response."""
+
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+@dataclass
+class _Otp:
+    code: str
+    expires: datetime
+    tries: int = 0
+
+
+_store: dict[str, _Otp] = {}
+
+
+def normalise_phone(phone: str) -> str:
+    p = re.sub(r"[\s\-()]", "", phone or "")
+    if not _PHONE.match(p):
+        raise AuthError("invalid_phone")
+    if p.startswith("+"):
+        return p
+    return "+91" + p if len(p) == 10 else "+" + p      # a bare 10-digit number is taken as Indian
+
+
+def request_otp(phone: str, now: datetime | None = None) -> str:
+    """Create (or replace) the code for this phone and return it. The caller decides whether to reveal it."""
+    phone = normalise_phone(phone)
+    code = f"{secrets.randbelow(10**6):06d}"
+    _store[phone] = _Otp(code, (now or datetime.now(UTC)) + OTP_TTL)
+    if get_settings().dev_mode:
+        log.warning("MOCK OTP for %s is %s (DEV_MODE; no SMS is sent)", phone, code)
+    return code
+
+
+def verify_otp(phone: str, code: str, now: datetime | None = None) -> str:
+    """Return the normalised phone if the code is right; a code works once."""
+    phone = normalise_phone(phone)
+    entry = _store.get(phone)
+    if entry is None:
+        raise AuthError("otp_not_requested")
+    if (now or datetime.now(UTC)) > entry.expires:
+        _store.pop(phone, None)
+        raise AuthError("otp_expired")
+    if not hmac.compare_digest(entry.code, str(code or "")):
+        entry.tries += 1
+        if entry.tries >= OTP_MAX_TRIES:
+            _store.pop(phone, None)
+            raise AuthError("otp_too_many_tries")
+        raise AuthError("otp_wrong")
+    _store.pop(phone, None)
+    return phone
+
+
+def _secret() -> str:
+    s = get_settings()
+    if not s.dev_mode and s.jwt_secret == DEFAULT_SECRET:
+        raise RuntimeError("JWT_SECRET must be set in .env when DEV_MODE is off")
+    return s.jwt_secret
+
+
+def create_token(user_id: int, now: datetime | None = None) -> tuple[str, int]:
+    """(token, seconds until it expires)."""
+    now = now or datetime.now(UTC)
+    payload = {"sub": str(user_id), "iat": now, "exp": now + TOKEN_TTL}
+    return jwt.encode(payload, _secret(), algorithm=JWT_ALG), int(TOKEN_TTL.total_seconds())
+
+
+def read_token(token: str) -> int:
+    try:
+        data = jwt.decode(token, _secret(), algorithms=[JWT_ALG], options={"require": ["sub", "exp"]})
+        return int(data["sub"])
+    except (jwt.PyJWTError, ValueError) as e:
+        raise AuthError("invalid_token") from e
+
+
+def reset_store() -> None:
+    """Tests only."""
+    _store.clear()

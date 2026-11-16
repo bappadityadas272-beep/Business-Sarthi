@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "B-02"
+  current_focus: "B-03"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -143,7 +143,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
 | B-01 | SQLAlchemy models and Alembic migration for ARCHITECTURE section 7 | all | P0 | S-02 | DONE | `alembic upgrade head` creates all tables; model tests pass | 13 tables; migration 0001; FK pragma on; unique (shop, day, category) on daily_log for B-05 |
-| B-02 | Mock OTP auth + JWT | all | P0 | B-01 | TODO | Request and verify OTP returns JWT; wrong OTP is rejected; protected route needs token | OTP printed to server log in `DEV_MODE` |
+| B-02 | Mock OTP auth + JWT | all | P0 | B-01 | DONE | Request and verify OTP returns JWT; wrong OTP is rejected; protected route needs token | OTP printed to server log in DEV_MODE and returned as dev_otp (DEC-40); JWT 7 days (DEC-41) |
 | B-03 | Profile, language, consent endpoints | all | P0 | B-02 | TODO | Shop creation refused (403) without consent record | |
 | B-04 | Shops create and read | F1 | P0 | B-03 | TODO | Owner can create and read only own shops | |
 | B-05 | Daily logs bulk create and range read | F3,F5 | P0 | B-04 | TODO | Duplicate (shop, day, category) updates not duplicates; range query correct | |
@@ -938,6 +938,8 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-37 | 2026-11-16 | ML2 (M-04) baseline for a shop that has not opened is the **peer median**: median monthly revenue of training shops per (city tier, size bucket, month since opening); size buckets are terciles of the training shops' `size_sqft`; an empty cell falls back to (tier, month), then (month). Target: model WAPE at least 10% lower on held-out shops. Seasonal-naive is used only in M-06, where history exists | A shop with no history has no seasonal-naive forecast; decided by the human | Seasonal-naive (needs history); fixed sq ft bucket edges | ACTIVE |
 | DEC-38 | 2026-11-16 | ML2 conformal calibration: split conformal on the ratio actual / P50, calibration shops only, target central coverage **80%** (middle of the 75% to 85% acceptance band), one ratio pair per forecast month with finite-sample ranks (upper = ceil((n+1)(1-alpha/2))-th, lower = floor((n+1)(alpha/2))-th smallest); months pooled to bins 1-3 / 4-6 / 7-12, then all, when a group has under 20 rows; rows re-sorted so 0 < P10 <= P50 <= P90 | A ratio scales with shop size and keeps the monotone rules; approved by the human | Additive residuals; 75% or 85% target | ACTIVE |
 | DEC-39 | 2026-11-16 | Synthetic set grown from 200 to **1,000 shops** (`n_shops` in `data/synthetic/config.yaml`); the DEC-32 split shares stay 60/20/20, so 600 train / 200 calibration / 200 test. Amends DEC-23 and DEC-32. Made **after** the first M-04 test run (40 test shops) showed 94.0% coverage, a miss; no model setting, target or method was changed, and `docs/EVAL_REPORT.md` states this history | With 40 calibration + 40 test shops coverage swung about 7 points between random splits (30 re-splits: mean 80.0%), too noisy to judge a 75% to 85% target; chosen by the human | Report the miss and keep 200 shops; mark M-04 BLOCKED | ACTIVE |
+| DEC-40 | 2026-11-16 | Mock OTP (B-02): random 6-digit code, valid 5 minutes, single use, burned after 5 wrong tries, kept in process memory (no table); printed to the server log and returned as `dev_otp` in the response **only when `DEV_MODE` is on**; the response always carries `is_mock: true` | The demo screen can show the code without reading logs; no SMS provider in the prototype (DEC-10); chosen by the human | Server log only; fixed code 123456 | ACTIVE |
+| DEC-41 | 2026-11-16 | Login token: JWT, HS256, signed with `JWT_SECRET`, valid **7 days**, no refresh token; the built-in default secret is refused when `DEV_MODE` is off | Simple for a prototype; chosen by the human | 24 hours; 30 days | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -949,6 +951,13 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: B-02 mock OTP login and JWT
+
+- `backend/app/services/auth.py`: mock OTP store (DEC-40) and JWT helpers (DEC-41). `backend/app/api/auth.py`: `POST /api/auth/otp/request`, `POST /api/auth/otp/verify`. `backend/app/api/deps.py`: `CurrentUser` dependency (401 with a `code` when the token is missing, bad, expired or its user is gone). `GET /api/me` is the first protected route.
+- Phone numbers are normalised (a bare 10-digit number is taken as +91). Errors carry stable codes (`otp_wrong`, `otp_expired`, `otp_not_requested`, `otp_too_many_tries`, `invalid_phone`) so the UI can localise them.
+- Tests: `tests/test_auth.py` (10) and shared fixtures in `tests/conftest.py` (`client`, `login`, `auth_headers`; a fresh SQLite file per test).
+- Next person: the OTP store is in memory, so it works with one server process only. No SMS is ever sent.
 
 ## 2026-11-16: M-04 conformal calibration and evaluation report
 

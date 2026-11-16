@@ -2,6 +2,13 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: B-02 mock OTP login and JWT
+
+- `backend/app/services/auth.py`: mock OTP store (DEC-40) and JWT helpers (DEC-41). `backend/app/api/auth.py`: `POST /api/auth/otp/request`, `POST /api/auth/otp/verify`. `backend/app/api/deps.py`: `CurrentUser` dependency (401 with a `code` when the token is missing, bad, expired or its user is gone). `GET /api/me` is the first protected route.
+- Phone numbers are normalised (a bare 10-digit number is taken as +91). Errors carry stable codes (`otp_wrong`, `otp_expired`, `otp_not_requested`, `otp_too_many_tries`, `invalid_phone`) so the UI can localise them.
+- Tests: `tests/test_auth.py` (10) and shared fixtures in `tests/conftest.py` (`client`, `login`, `auth_headers`; a fresh SQLite file per test).
+- Next person: the OTP store is in memory, so it works with one server process only. No SMS is ever sent.
+
 ## 2026-11-16: M-04 conformal calibration and evaluation report
 
 - `backend/app/ml/calibrate.py`: split conformal on actual / P50 using only the calibration shops, one ratio pair per forecast month, finite-sample ranks, pooling when a month has under 20 rows (DEC-38). Result is written into `model_card.json` under `calibration`; `predict_quantiles` now takes either band and `active_band(card)` picks the calibrated one. `make train` runs training then calibration.

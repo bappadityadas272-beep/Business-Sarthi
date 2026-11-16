@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_DIR.parent
+DEV_JWT_SECRET = "dev-only-change-me-not-a-secret-placeholder"   # refused when DEV_MODE is off (DEC-41)
 
 
 class Settings(BaseSettings):
@@ -19,7 +20,7 @@ class Settings(BaseSettings):
 
     dev_mode: bool = True
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'data' / 'sarthi.db').as_posix()}"
-    jwt_secret: str = "dev-only-change-me"
+    jwt_secret: str = DEV_JWT_SECRET
     llm_provider: Literal["gemini", "claude", "stub"] = "stub"
     llm_api_key: str = ""
     embed_model: str = "intfloat/multilingual-e5-small"
