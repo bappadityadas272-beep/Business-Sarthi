@@ -91,11 +91,24 @@ def test_patterns_present(full_run):
     assert diwali > 1.3 * t[(t.day >= "2023-11-20") & (t.day <= "2023-12-10")].sales.mean()
 
 
-def test_demo_shop(full_run):
+def _demo(full_run, shop_id):
     d = full_run / "demo"
-    shop = pd.read_csv(d / "shops.csv").iloc[0]
+    shop = pd.read_csv(d / "shops.csv").set_index("shop_id").loc[shop_id]
     daily = pd.read_csv(d / "daily.csv", parse_dates=["day"])
-    loan = pd.read_csv(d / "loans.csv").iloc[0]
+    loan = pd.read_csv(d / "loans.csv").set_index("shop_id").loc[shop_id]
+    return shop, daily[daily.shop_id == shop_id], loan
+
+
+def _monthly_dscr(shop, daily, loan):
+    gross = sum((g.sales * shop[f"margin_{c}"]).groupby(g.day.dt.to_period("M")).sum()
+                for c, g in daily.groupby("category"))
+    sales = daily.groupby(daily.day.dt.to_period("M")).sales.sum()
+    fixed = shop.monthly_rent + shop.staff_count * shop.staff_wage
+    return sales, (gross - fixed) / loan.emi
+
+
+def test_demo_ramesh_dip_and_squeeze(full_run):
+    shop, daily, loan = _demo(full_run, "DEMO-001")
     assert shop["name"] == "Ramesh Kirana" and bool(shop["is_demo"])
     assert daily.day.min() == pd.Timestamp("2026-08-01") and daily.day.max() == pd.Timestamp("2026-10-31")
     assert loan.emi == 7500 and loan.due_day == 5
@@ -103,3 +116,39 @@ def test_demo_shop(full_run):
     in_dip = tot["2026-09-05":"2026-09-25"].mean()
     around = pd.concat([tot["2026-08-15":"2026-09-04"], tot["2026-09-26":"2026-10-10"]]).mean()
     assert in_dip < 0.8 * around
+    _, dscr = _monthly_dscr(shop, daily, loan)
+    assert dscr.min() < 1.0                                  # EMI squeeze exists
+
+
+def test_demo_sunita_meets_grow_conditions(full_run):
+    """review_rules grow: dscr >= 1.5, growth_rate > 0, data_completeness >= 0.7 (revenue_vs_p50 needs M-02)."""
+    shop, daily, loan = _demo(full_run, "DEMO-002")
+    assert shop["name"] == "Sunita General Store" and loan.due_day == 10
+    assert daily.groupby("day").category.nunique().eq(5).all() and daily.day.nunique() == 92
+    sales, dscr = _monthly_dscr(shop, daily, loan)
+    assert (dscr >= 1.5).all(), dscr
+    assert sales.is_monotonic_increasing, sales
+    assert shop.latent_performance == 1.15
+
+
+def test_floor_binds_rarely(full_run):
+    shops = pd.read_csv(full_run / "shops.csv")
+    floor = gen.load_config(GEN_PATH.parent / "config.yaml")[0]["steady_revenue"]["clip"][0]
+    assert (shops.latent_steady_daily <= floor).mean() < 0.02
+
+
+def test_per_shop_variation(full_run):
+    shops = pd.read_csv(full_run / "shops.csv")
+    for k in ("weekday", "ramp_up", "festival"):
+        col = shops[f"latent_var_{k}"]
+        assert col.between(0.9, 1.1).all() and col.std() > 0.03, k
+
+
+def test_festival_uplift_differs_by_category(full_run):
+    """Diwali profile: household rises more than staples (1.5 vs 0.7 before rescaling)."""
+    daily = pd.read_csv(full_run / "daily.csv", parse_dates=["day"])
+    by = daily.groupby(["day", "category"]).sales.sum().unstack()
+    normal = by.loc["2023-11-20":"2023-12-10"].mean()
+    lift = by.loc[pd.Timestamp("2023-11-12")] / normal
+    assert lift["household"] > lift["staples"] + 0.3
+    assert lift["snacks_beverages"] > lift["staples"]

@@ -2,6 +2,16 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: D-01 review changes (generator v1.1)
+
+- Human review of the 3 sample charts accepted D-01 with changes, all in `data/synthetic/config.yaml`:
+  - Revenue floor INR 4,000 -> 2,000 a day: shops on the floor went from 31 (16%) to 1 (0.5%) (DEC-27).
+  - Per-shop strength factor 0.9 to 1.1 for the weekday, ramp-up and festival effects, stored as `latent_var_*` columns; weekend/weekday now ranges about 1.14 to 1.19 across shops (DEC-28).
+  - Festival uplift differs by category (`festival_category`); Diwali 2023 lift: household x2.04, snacks x1.93, dairy x1.83, personal care x1.70, staples x1.51 (DEC-29).
+  - Second demo shop Sunita General Store (DEMO-002) meant for a "grow" review; `demo:` became `demos:` (a list) and `out/demo/` now holds 2 shops (DEC-30).
+- Tests: 11 in `tests/test_synthetic.py` (floor share, variation range, category festival lift, Ramesh squeeze, Sunita grow conditions); full suite 37 passed.
+- Next person: `revenue_vs_p50 >= 1.0` for Sunita can only be checked after M-02 exists; check it in D-05.
+
 ## 2026-11-16: D-01 synthetic data generator
 
 - `data/synthetic/config.yaml` (all values are assumptions, DEC-23) and `data/synthetic/generate.py` with `--seed`, `--config`, `--out`, `--n-shops` and `--demo`.

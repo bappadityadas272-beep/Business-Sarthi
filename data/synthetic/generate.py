@@ -5,7 +5,7 @@ ALL OUTPUT IS SYNTHETIC. Every CSV has an `is_synthetic` column set to true, and
 
     python data/synthetic/generate.py                # 200 shops x 24 months -> data/synthetic/out/
     python data/synthetic/generate.py --seed 7 --out /tmp/x
-    python data/synthetic/generate.py --demo         # also writes Ramesh Kirana to out/demo/
+    python data/synthetic/generate.py --demo         # also writes the 2 demo shops to out/demo/
 
 Outputs:
     shops.csv   static features per shop (columns prefixed `latent_` are generator internals:
@@ -28,7 +28,7 @@ import pandas as pd
 import yaml
 
 HERE = Path(__file__).resolve().parent
-GENERATOR_VERSION = "1.0.0"
+GENERATOR_VERSION = "1.1.0"
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 DAYS_PER_MONTH = 30.4375
 
@@ -39,30 +39,35 @@ def load_config(path: Path) -> tuple[dict, str]:
 
 
 # ---------- multipliers (all vectorised over a DatetimeIndex) ----------
-def festival_mult(days: pd.DatetimeIndex, festivals: dict) -> np.ndarray:
-    """Linear ramp over `days` days ending at `peak` on the festival date. Overlaps take the max."""
-    uplift = np.zeros(len(days))
+def festival_uplift(days: pd.DatetimeIndex, cfg: dict) -> dict[str, np.ndarray]:
+    """Per-category festival uplift (0 = none). Linear ramp over `days` days up to `peak` on the festival
+    date, times the festival's category profile (DEC-29). Overlapping festivals take the max."""
+    base, profiles = cfg["category_mix"]["base"], cfg["festival_category"]
+    uplift = {c: np.zeros(len(days)) for c in cfg["categories"]}
     day_ns = days.values.astype("datetime64[D]")
-    for name, f in festivals.items():
+    for name, f in cfg["festivals"].items():
         if name == "verified":
             continue
+        prof = profiles.get(name, profiles["default"])
+        norm = sum(base[c] * prof[c] for c in cfg["categories"])   # keeps the average-shop uplift = peak
         n = int(f["days"])
         for d in f["dates"]:
-            fd = np.datetime64(d, "D")
-            lag = (fd - day_ns).astype(int)              # days until the festival (0 = festival day)
-            inside = (lag >= 0) & (lag < n)
-            ramp = np.where(inside, f["peak"] * (n - lag) / n, 0.0)
-            uplift = np.maximum(uplift, ramp)
-    return 1.0 + uplift
+            lag = (np.datetime64(d, "D") - day_ns).astype(int)     # days until the festival (0 = festival day)
+            ramp = np.where((lag >= 0) & (lag < n), f["peak"] * (n - lag) / n, 0.0)
+            for c in cfg["categories"]:
+                uplift[c] = np.maximum(uplift[c], ramp * prof[c] / norm)
+    return uplift
 
 
-def calendar_mult(days: pd.DatetimeIndex, cfg: dict) -> np.ndarray:
+def calendar_mult(days: pd.DatetimeIndex, cfg: dict, weekday_scale: float = 1.0) -> np.ndarray:
+    """Weekday x payday multiplier. `weekday_scale` stretches each weekday's distance from 1 (DEC-28)."""
     wd = np.array([cfg["weekday_mult"][WEEKDAYS[i]] for i in range(7)])[days.day_of_week]
+    wd = 1.0 + (wd - 1.0) * weekday_scale
     p = cfg["payday"]
     dom, dim = days.day.values, days.days_in_month.values
     pay = np.where(dom <= p["first_days"], p["first_mult"],
                    np.where(dom > dim - p["last_days"], p["last_mult"], 1.0))
-    return wd * pay * festival_mult(days, cfg["festivals"])
+    return wd * pay
 
 
 def ramp_mult(days: pd.DatetimeIndex, launch: pd.Timestamp, r0: float, tau: float) -> np.ndarray:
@@ -115,15 +120,20 @@ def sample_shop(rng: np.random.Generator, cfg: dict, i: int) -> dict:
     has_shock = bool(rng.random() < sh["prob"])
     shock_start = launch + pd.Timedelta(days=int(rng.uniform(*sh["start_month"]) * DAYS_PER_MONTH))
     shock_mult = float(rng.uniform(*sh["mult"]))
+    r0, tau = float(rng.uniform(*cfg["ramp_up"]["r0"])), float(rng.uniform(*cfg["ramp_up"]["tau_months"]))
+    trend = float(rng.uniform(*cfg["trend_annual"]))
+    var = {k: float(rng.uniform(*cfg["shop_variation"][k])) for k in ("weekday", "ramp_up", "festival")}
     return {
         "shop_id": f"S{i:04d}", "shop_type": "kirana", "city_tier": tier, **feat, "size_sqft": size,
         "monthly_rent": rent, "staff_count": staff, "staff_wage": wage,
         "launch_date": launch.date().isoformat(),
         **{f"margin_{c}": round(m, 4) for c, m in margins.items()},
         "latent_steady_daily": round(steady_revenue(feat, size, tier, cfg, noise), 2),
-        "latent_ramp_r0": round(float(rng.uniform(*cfg["ramp_up"]["r0"])), 4),
-        "latent_ramp_tau": round(float(rng.uniform(*cfg["ramp_up"]["tau_months"])), 4),
-        "latent_trend": round(float(rng.uniform(*cfg["trend_annual"])), 4),
+        # effective ramp after per-shop variation: depth (1 - r0) and tau both scaled (DEC-28)
+        "latent_ramp_r0": round(1.0 - (1.0 - r0) * var["ramp_up"], 4),
+        "latent_ramp_tau": round(tau * var["ramp_up"], 4),
+        "latent_trend": round(trend, 4),
+        **{f"latent_var_{k}": round(v, 4) for k, v in var.items()},
         "latent_shock": has_shock,
         "latent_shock_start": shock_start.date().isoformat() if has_shock else "",
         "latent_shock_mult": round(shock_mult, 4) if has_shock else 1.0,
@@ -137,7 +147,7 @@ def simulate_daily(rng: np.random.Generator, shop: dict, cfg: dict, end: pd.Time
     launch = pd.Timestamp(shop["launch_date"])
     last = end if end is not None else launch + pd.DateOffset(months=cfg["months"]) - pd.Timedelta(days=1)
     days = pd.date_range(launch, last, freq="D")
-    total = (shop["latent_steady_daily"] * calendar_mult(days, cfg)
+    total = (shop["latent_steady_daily"] * calendar_mult(days, cfg, shop["latent_var_weekday"])
              * ramp_mult(days, launch, shop["latent_ramp_r0"], shop["latent_ramp_tau"])
              * trend_mult(days, launch, shop["latent_trend"])
              * np.exp(rng.normal(0, cfg["daily_noise_sigma"], len(days))))
@@ -153,9 +163,11 @@ def simulate_daily(rng: np.random.Generator, shop: dict, cfg: dict, end: pd.Time
     restock_every = int(rng.integers(lo, hi + 1))
     restock_day = (np.arange(len(days)) % restock_every) == restock_every - 1
     restock_day[-1] = True                                   # flush the last partial cycle
+    fest = festival_uplift(days, cfg)
     frames = []
     for c in cfg["categories"]:
-        sales = total * shop[f"latent_mix_{c}"] * np.exp(rng.normal(0, cfg["category_noise_sigma"], len(days)))
+        sales = (total * shop[f"latent_mix_{c}"] * (1.0 + shop["latent_var_festival"] * fest[c])
+                 * np.exp(rng.normal(0, cfg["category_noise_sigma"], len(days))))
         sales = np.round(sales, 2)
         cogs = sales * (1.0 - shop[f"margin_{c}"])
         cycle = np.concatenate([[0], np.cumsum(restock_day)[:-1]])      # restock cycle index per day
@@ -216,33 +228,42 @@ def generate(cfg: dict, cfg_hash: str, seed: int, out: Path, n_shops: int | None
     return rows
 
 
-def generate_demo(cfg: dict, cfg_hash: str, seed: int, out: Path) -> dict[str, int]:
-    """Ramesh Kirana: fixed, hand-set profile; only the noise and shop mix are seeded."""
-    dm = cfg["demo"]
-    rng = np.random.default_rng(seed + 1_000_003)            # separate stream: demo never shifts training data
-    out.mkdir(parents=True, exist_ok=True)
+def demo_shop(dm: dict, cfg: dict) -> dict:
     feat = {k: dm[k] for k in ("homes", "schools", "transit", "banks_atms", "competitors")}
-    mix = cfg["category_mix"]["base"]
-    shop = {
+    return {
         "shop_id": dm["shop_id"], "name": dm["name"], "shop_type": "kirana", "city_tier": dm["city_tier"],
         **feat, "size_sqft": float(dm["size_sqft"]), "monthly_rent": float(dm["monthly_rent"]),
         "staff_count": dm["staff_count"], "staff_wage": float(dm["staff_wage"]), "budget": float(dm["budget"]),
         "launch_date": dm["launch_date"], "is_demo": True,
         **{f"margin_{c}": round(float(np.mean(cfg["margins"][c])), 4) for c in cfg["categories"]},
-        "latent_steady_daily": round(steady_revenue(feat, dm["size_sqft"], dm["city_tier"], cfg, 1.0), 2),
+        "latent_steady_daily": round(
+            steady_revenue(feat, dm["size_sqft"], dm["city_tier"], cfg, dm["performance"]), 2),
+        "latent_performance": dm["performance"],
         "latent_ramp_r0": float(np.mean(cfg["ramp_up"]["r0"])),
         "latent_ramp_tau": float(np.mean(cfg["ramp_up"]["tau_months"])),
         "latent_trend": float(np.mean(cfg["trend_annual"])),
+        "latent_var_weekday": 1.0, "latent_var_ramp_up": 1.0, "latent_var_festival": 1.0,
         "latent_shock": False, "latent_shock_start": "", "latent_shock_mult": 1.0,
-        **{f"latent_mix_{c}": mix[c] for c in cfg["categories"]},
+        **{f"latent_mix_{c}": cfg["category_mix"]["base"][c] for c in cfg["categories"]},
     }
-    daily = simulate_daily(rng, shop, cfg, end=pd.Timestamp(dm["end_date"]), dip=dm["dip"])
-    loans = pd.DataFrame([{"shop_id": dm["shop_id"], **dm["loan"]}])
-    write_csv(pd.DataFrame([shop]), out / "shops.csv")
-    write_csv(daily, out / "daily.csv")
-    write_csv(loans, out / "loans.csv")
-    rows = {"shops.csv": 1, "daily.csv": len(daily), "loans.csv": 1}
-    write_metadata(out, cfg_hash, seed, rows, {"demo": True, "dip": dm["dip"]})
+
+
+def generate_demo(cfg: dict, cfg_hash: str, seed: int, out: Path) -> dict[str, int]:
+    """Fixed, hand-set demo shops (Ramesh Kirana, Sunita General Store); only the noise is seeded."""
+    out.mkdir(parents=True, exist_ok=True)
+    shops, daily, loans = [], [], []
+    for k, dm in enumerate(cfg["demos"]):
+        rng = np.random.default_rng(seed + 1_000_003 + k)   # own stream: demos never shift training data
+        shop = demo_shop(dm, cfg)
+        shops.append(shop)
+        daily.append(simulate_daily(rng, shop, cfg, end=pd.Timestamp(dm["end_date"]), dip=dm.get("dip")))
+        loans.append({"shop_id": dm["shop_id"], **dm["loan"]})
+    daily_df = pd.concat(daily, ignore_index=True)
+    write_csv(pd.DataFrame(shops), out / "shops.csv")
+    write_csv(daily_df, out / "daily.csv")
+    write_csv(pd.DataFrame(loans), out / "loans.csv")
+    rows = {"shops.csv": len(shops), "daily.csv": len(daily_df), "loans.csv": len(loans)}
+    write_metadata(out, cfg_hash, seed, rows, {"demo": True, "demo_shops": [d["shop_id"] for d in cfg["demos"]]})
     return rows
 
 
@@ -252,7 +273,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--seed", type=int, default=None, help="default: seed in config.yaml")
     ap.add_argument("--out", type=Path, default=HERE / "out")
     ap.add_argument("--n-shops", type=int, default=None, help="override n_shops (for quick tests)")
-    ap.add_argument("--demo", action="store_true", help="also write Ramesh Kirana to <out>/demo/")
+    ap.add_argument("--demo", action="store_true", help="also write the demo shops to <out>/demo/")
     a = ap.parse_args(argv)
     cfg, h = load_config(a.config)
     seed = cfg["seed"] if a.seed is None else a.seed

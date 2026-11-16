@@ -106,10 +106,10 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "plot 3 sample shops for human review"
+  current_focus: "M-03"
   blockers: []
   demo_path_ready: false
-  notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
+  notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
 ```
 
 **Status values:** `TODO` · `IN_PROGRESS` · `DONE` · `BLOCKED` · `DROPPED`
@@ -132,7 +132,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | DONE | Generates 200 shops x 24 months; two runs with same seed are identical; every file has `is_synthetic` metadata | generate.py + config.yaml; 730,820 daily rows; same-seed SHA-256 identical; 7 tests in tests/test_synthetic.py; DEC-23 to DEC-26 |
+| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | DONE | Generates 200 shops x 24 months; two runs with same seed are identical; every file has `is_synthetic` metadata | v1.1 after human review: floor 2,000 (0.5% of shops at it), per-shop +/-10% effect strength, festival uplift per category, 2 demo shops; 11 tests in tests/test_synthetic.py; DEC-23 to DEC-30 |
 | D-02 | Pick and **licence-check** one public retail dataset; document in `data/PUBLIC_DATA.md` (name, URL, licence, date checked) | F1 | P1 | S-01 | TODO | Licence permits our use, or dataset replaced | Do not commit the raw data if the licence forbids |
 | D-03 | Scheme KB v0: 5 to 8 entries from official pages, `verified:false`, with source URL and `last_verified` | F4 | P1 | S-01 | TODO | JSON validates against schema; every entry has a source URL | Human verification is R-04 |
 | D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | DONE | Loader validates every file with Pydantic | Loader `app/rules.py`; 8th file `investment_split.yaml` added (DEC-22); drafted values approved as assumptions (DEC-21) |
@@ -925,6 +925,10 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-24 | 2026-11-16 | Synthetic labelling: every CSV has an `is_synthetic=true` column and each output folder has a `metadata.json` (`is_synthetic: true`, seed, config SHA-256, row counts, no timestamp so reruns are byte-identical) | Satisfies AGENTS rule 4 at file and row level | Metadata file only | ACTIVE |
 | DEC-25 | 2026-11-16 | `--demo` writes Ramesh Kirana (DEMO-001) to `data/synthetic/out/demo/`: launch 2026-08-01, 3 months of logs to 2026-10-31, a 40% sales dip 2026-09-05 to 09-25, loan EMI 7,500 due on the 5th; uses its own RNG stream so it never shifts the training data | Recent dates make the demo look live; D-05 seeds the DB from it | Older dates, separate script | ACTIVE |
 | DEC-26 | 2026-11-16 | Generated data goes to `data/synthetic/out/` and is git-ignored; anyone regenerates it with `python data/synthetic/generate.py --demo` | Output is ~37 MB and fully reproducible from seed + config | Commit the CSVs | ACTIVE |
+| DEC-27 | 2026-11-16 | Steady-revenue floor lowered from INR 4,000 to 2,000 a day (`steady_revenue.clip: [2000, 25000]`) | Human D-01 review: at 4,000, 16% of shops sat on the floor; at 2,000, 0.5% (1 of 200) do | 1,500; remove the floor | ACTIVE |
+| DEC-28 | 2026-11-16 | Per-shop strength factor, uniform 0.9 to 1.1, one per effect: weekday (scales each multiplier's distance from 1), ramp-up (scales depth 1 - r0 and tau), festival (scales the uplift). Demo shops use 1.0 | Human D-01 review asked for about +/-10% per-shop variation; scaling the effect size keeps weekday order intact | Scale each multiplier independently (weekday order could flip) | ACTIVE |
+| DEC-29 | 2026-11-16 | Festival uplift differs by category (`festival_category` in config): a default profile plus Diwali, Eid and Holi overrides, rescaled so the base-mix-weighted average is 1; assumption | Human D-01 review; for example household and snacks rise more than staples at Diwali | One shared profile only | ACTIVE |
+| DEC-30 | 2026-11-16 | Second demo shop "Sunita General Store" (DEMO-002) in `out/demo/` beside Ramesh: tier 1, 250 sq ft, rent 12,000, 1 staff, EMI 5,000 due on the 10th, performance x1.15, no dip; meant to end in a "grow" review. Measured: sales INR 4.5 / 5.2 / 6.0 lakh and DSCR 7.2 / 9.0 / 11.1 for Aug to Oct 2026, above the 90th percentile of the training shops; the human chose to keep it | Gives D-05 a contrasting grow story | Shrink to a typical tier-2 shop | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -936,6 +940,16 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: D-01 review changes (generator v1.1)
+
+- Human review of the 3 sample charts accepted D-01 with changes, all in `data/synthetic/config.yaml`:
+  - Revenue floor INR 4,000 -> 2,000 a day: shops on the floor went from 31 (16%) to 1 (0.5%) (DEC-27).
+  - Per-shop strength factor 0.9 to 1.1 for the weekday, ramp-up and festival effects, stored as `latent_var_*` columns; weekend/weekday now ranges about 1.14 to 1.19 across shops (DEC-28).
+  - Festival uplift differs by category (`festival_category`); Diwali 2023 lift: household x2.04, snacks x1.93, dairy x1.83, personal care x1.70, staples x1.51 (DEC-29).
+  - Second demo shop Sunita General Store (DEMO-002) meant for a "grow" review; `demo:` became `demos:` (a list) and `out/demo/` now holds 2 shops (DEC-30).
+- Tests: 11 in `tests/test_synthetic.py` (floor share, variation range, category festival lift, Ramesh squeeze, Sunita grow conditions); full suite 37 passed.
+- Next person: `revenue_vs_p50 >= 1.0` for Sunita can only be checked after M-02 exists; check it in D-05.
 
 ## 2026-11-16: D-01 synthetic data generator
 

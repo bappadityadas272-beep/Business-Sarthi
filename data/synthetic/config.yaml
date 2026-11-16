@@ -1,5 +1,5 @@
 # Synthetic kirana data generator config (D-01, ML_PLAN section 2).
-# EVERY VALUE HERE IS AN ASSUMPTION (approved 2026-11-16, DEC-23). Outputs are synthetic and labelled so.
+# EVERY VALUE HERE IS AN ASSUMPTION (approved 2026-11-16, DEC-23; review changes DEC-27 to DEC-30). Outputs are synthetic and labelled so.
 # Changing any value changes the data: log it in docs/DECISIONS.md.
 version: 1
 is_synthetic: true
@@ -32,7 +32,7 @@ steady_revenue:
   size_ref: 200
   competitor_decay: -0.06
   shop_noise_sigma: 0.20
-  clip: [4000, 25000]
+  clip: [2000, 25000]             # DEC-27: floor lowered from 4000 so < 2% of shops sit on it
 
 weekday_mult: {Mon: 0.95, Tue: 0.95, Wed: 0.96, Thu: 0.97, Fri: 1.00, Sat: 1.10, Sun: 1.15}
 payday: {first_days: 7, first_mult: 1.10, last_days: 5, last_mult: 0.95}
@@ -50,11 +50,22 @@ festivals:
   makar_sankranti: {peak: 0.15, days: 2, dates: ["2022-01-14", "2023-01-15", "2024-01-15", "2025-01-14", "2026-01-14"]}
   christmas:       {peak: 0.10, days: 2, dates: ["2022-12-25", "2023-12-25", "2024-12-25", "2025-12-25", "2026-12-25"]}
 
+# DEC-29: festival uplift per category. Values multiply the festival's peak, then are rescaled so the
+# base-mix-weighted average is 1 (total festival uplift for an average shop stays as approved).
+festival_category:
+  default:     {staples: 0.8, dairy: 1.3, snacks_beverages: 1.4, household: 1.0, personal_care: 0.9}
+  diwali:      {staples: 0.7, dairy: 1.2, snacks_beverages: 1.4, household: 1.5, personal_care: 1.0}
+  eid_al_fitr: {staples: 1.0, dairy: 1.5, snacks_beverages: 1.2, household: 0.8, personal_care: 1.0}
+  holi:        {staples: 0.7, dairy: 1.3, snacks_beverages: 1.6, household: 0.8, personal_care: 1.2}
+
 # ramp(m) = 1 - (1 - r0) * exp(-m / tau), m = months since launch
 ramp_up: {r0: [0.45, 0.65], tau_months: [1.5, 3.5]}
 trend_annual: [-0.02, 0.08]
 daily_noise_sigma: 0.12
 category_noise_sigma: 0.08
+# DEC-28: per-shop strength of each effect, one uniform factor per shop per effect, applied to the
+# effect's distance from 1 (weekday: mult-1; festival: uplift; ramp-up: depth 1-r0 and tau).
+shop_variation: {weekday: [0.9, 1.1], ramp_up: [0.9, 1.1], festival: [0.9, 1.1]}
 shock: {prob: 0.15, length_days: 30, mult: [0.50, 0.75], start_month: [4, 22]}
 
 category_mix:
@@ -71,22 +82,42 @@ purchases: {restock_every_days: [2, 4], cogs_factor: [0.95, 1.08]}
 rent_clip: [4000, 25000]
 staff: {probs: {0: 0.30, 1: 0.40, 2: 0.20, 3: 0.10}, monthly_wage: [8000, 12000]}
 
-# --demo: Ramesh Kirana for D-05 (3 months of logs, one dip, EMI squeeze)
-demo:
-  name: "Ramesh Kirana"
-  shop_id: DEMO-001
-  launch_date: "2026-08-01"
-  end_date: "2026-10-31"
-  city_tier: 2
-  homes: 180
-  schools: 2
-  transit: 5
-  banks_atms: 2
-  competitors: 3
-  size_sqft: 200
-  monthly_rent: 9000
-  staff_count: 1
-  staff_wage: 10000
-  budget: 300000
-  dip: {start: "2026-09-05", end: "2026-09-25", mult: 0.60}
-  loan: {principal: 200000, emi: 7500, due_day: 5}
+# --demo: two fixed shops for D-05, written to out/demo/ (DEC-25, DEC-30). `performance` multiplies steady
+# revenue (1.0 = exactly like similar shops). Per-shop variation factors are fixed at 1.0 for demos.
+demos:
+  - name: "Ramesh Kirana"            # story: dip month + EMI squeeze
+    shop_id: DEMO-001
+    launch_date: "2026-08-01"
+    end_date: "2026-10-31"
+    city_tier: 2
+    homes: 180
+    schools: 2
+    transit: 5
+    banks_atms: 2
+    competitors: 3
+    size_sqft: 200
+    monthly_rent: 9000
+    staff_count: 1
+    staff_wage: 10000
+    budget: 300000
+    performance: 1.0
+    dip: {start: "2026-09-05", end: "2026-09-25", mult: 0.60}
+    loan: {principal: 200000, emi: 7500, due_day: 5}
+  - name: "Sunita General Store"     # story: healthy shop, expected review = grow
+    shop_id: DEMO-002
+    launch_date: "2026-08-01"
+    end_date: "2026-10-31"
+    city_tier: 1
+    homes: 300
+    schools: 3
+    transit: 8
+    banks_atms: 3
+    competitors: 2
+    size_sqft: 250
+    monthly_rent: 12000
+    staff_count: 1
+    staff_wage: 10000
+    budget: 400000
+    performance: 1.15
+    dip: null
+    loan: {principal: 150000, emi: 5000, due_day: 10}
