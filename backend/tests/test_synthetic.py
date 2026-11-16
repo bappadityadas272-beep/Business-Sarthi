@@ -1,4 +1,4 @@
-"""D-01: 200 shops x 24 months; same seed => identical files; every file labelled synthetic."""
+"""D-01: 1,000 shops x 24 months (DEC-39; these tests generate 200 for speed); same seed => identical files; every file labelled synthetic."""
 import hashlib
 import importlib.util
 import json
@@ -22,11 +22,16 @@ def _hashes(d):
 @pytest.fixture(scope="module")
 def full_run(tmp_path_factory):
     out = tmp_path_factory.mktemp("synA")
-    gen.main(["--out", str(out), "--demo"])
+    gen.main(["--out", str(out), "--demo", "--n-shops", "200"])
     return out
 
 
-def test_full_size_200_shops_24_months(full_run):
+def test_config_asks_for_1000_shops():
+    cfg = gen.yaml.safe_load((gen.Path(gen.__file__).parent / "config.yaml").read_text(encoding="utf-8"))
+    assert cfg["n_shops"] == 1000 and cfg["months"] == 24 and cfg["is_synthetic"] is True
+
+
+def test_200_shops_24_months_no_gaps(full_run):
     shops = pd.read_csv(full_run / "shops.csv")
     daily = pd.read_csv(full_run / "daily.csv", parse_dates=["day"])
     assert len(shops) == 200 and shops.shop_id.is_unique
@@ -41,7 +46,7 @@ def test_full_size_200_shops_24_months(full_run):
 
 
 def test_same_seed_identical(full_run, tmp_path):
-    gen.main(["--out", str(tmp_path), "--demo"])
+    gen.main(["--out", str(tmp_path), "--demo", "--n-shops", "200"])
     assert _hashes(full_run) == _hashes(tmp_path)
 
 

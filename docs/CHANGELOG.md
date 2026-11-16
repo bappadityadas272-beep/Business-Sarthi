@@ -2,6 +2,16 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: M-04 conformal calibration and evaluation report
+
+- `backend/app/ml/calibrate.py`: split conformal on actual / P50 using only the calibration shops, one ratio pair per forecast month, finite-sample ranks, pooling when a month has under 20 rows (DEC-38). Result is written into `model_card.json` under `calibration`; `predict_quantiles` now takes either band and `active_band(card)` picks the calibrated one. `make train` runs training then calibration.
+- `eval/forecast_eval.py` (`make eval`): the only code that reads the test shops. Peer-median baseline (DEC-37), WAPE, pinball at 0.1 / 0.5 / 0.9, coverage overall and by month, city tier and size bucket, interval width, monotone probe. Writes `docs/EVAL_REPORT.md`; hand-written notes come from `eval/forecast_notes.md`.
+- **First result was a miss:** with 200 shops (40 test) coverage was 94.0% against a 75% to 85% target. 30 random re-splits showed mean 80.0%, SD 7 points: too few shops to measure it. The human chose to grow the synthetic set to 1,000 shops (DEC-39; 600 / 200 / 200). No model setting, target or method changed. This history is in the report.
+- Result on the 200 test shops (SYNTHETIC): WAPE 0.197 vs peer median 0.313 (37.0% lower, target 10%); coverage 80.5% (target 75% to 85%); pinball P10 / P50 / P90 7,407 / 21,067 / 10,631; 0 monotone breaks in 302,400 checks; band always ordered and positive. Leaf CV now picks 20.
+- Honest caveats (in the report): tails are uneven (about 6% below P10, 14% above P90); small shops are over-covered (87.7%) while medium and large sit at 77%; month 1 is weakest.
+- Tests: `tests/test_calibrate.py` (9). `tests/test_synthetic.py` generates 200 shops for speed and checks the config asks for 1,000.
+- Next person: `make synth` now takes about a minute and writes about 180 MB (git-ignored). The public-data method check (D-02) is still open.
+
 ## 2026-11-16: M-03 ML2 training
 
 - `backend/app/ml/features.py`: one row per shop x month k (k = 1-12, counted from the launch day), the DEC-33 features, monotone vector; shared by training, M-04 and M-05.

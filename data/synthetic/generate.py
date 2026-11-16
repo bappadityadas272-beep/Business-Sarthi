@@ -3,7 +3,7 @@
 
 ALL OUTPUT IS SYNTHETIC. Every CSV has an `is_synthetic` column set to true, and `metadata.json` says so.
 
-    python data/synthetic/generate.py                # 200 shops x 24 months -> data/synthetic/out/
+    python data/synthetic/generate.py                # 1,000 shops x 24 months -> data/synthetic/out/
     python data/synthetic/generate.py --seed 7 --out /tmp/x
     python data/synthetic/generate.py --demo         # also writes the 2 demo shops to out/demo/
 

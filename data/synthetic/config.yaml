@@ -6,7 +6,7 @@ is_synthetic: true
 assumption: true
 
 seed: 42
-n_shops: 200
+n_shops: 1000                     # DEC-39: raised from 200 so calibration and test sets hold 200 shops each
 months: 24
 launch_window: {start: "2022-01-01", end: "2024-06-30"}
 categories: [staples, dairy, snacks_beverages, household, personal_care]

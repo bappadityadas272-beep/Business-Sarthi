@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-04"
+  current_focus: "B-02"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -132,7 +132,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | DONE | Generates 200 shops x 24 months; two runs with same seed are identical; every file has `is_synthetic` metadata | v1.1 after human review: floor 2,000 (0.5% of shops at it), per-shop +/-10% effect strength, festival uplift per category, 2 demo shops; 11 tests in tests/test_synthetic.py; DEC-23 to DEC-30 |
+| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | DONE | Generates 1,000 shops x 24 months (DEC-39; was 200); two runs with same seed are identical; every file has `is_synthetic` metadata | v1.1 after human review: floor 2,000 (0.5% of shops at it), per-shop +/-10% effect strength, festival uplift per category, 2 demo shops; 11 tests in tests/test_synthetic.py; DEC-23 to DEC-30 |
 | D-02 | Pick and **licence-check** one public retail dataset; document in `data/PUBLIC_DATA.md` (name, URL, licence, date checked) | F1 | P1 | S-01 | TODO | Licence permits our use, or dataset replaced | Do not commit the raw data if the licence forbids |
 | D-03 | Scheme KB v0: 5 to 8 entries from official pages, `verified:false`, with source URL and `last_verified` | F4 | P1 | S-01 | TODO | JSON validates against schema; every entry has a source URL | Human verification is R-04 |
 | D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | DONE | Loader validates every file with Pydantic | Loader `app/rules.py`; 8th file `investment_split.yaml` added (DEC-22); drafted values approved as assumptions (DEC-21) |
@@ -161,7 +161,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-01 | OSM client (Overpass + Nominatim), cache table, feature extractor | F2 | P0 | B-04 | TODO | Given a pin, returns counts of competitors, homes, schools, transit; second call hits cache; User-Agent set | Mock responses in tests |
 | M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | TODO | Score and top drivers returned; scenario tests pass | |
 | M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
-| M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | TODO | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | Also run on public data if D-02 done |
+| M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | DONE | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | SYNTHETIC, 200 test shops: WAPE 0.197 vs peer median 0.313 (37% lower); coverage 80.5%; 0 monotone breaks. First run on 200 shops missed coverage (94.0%), data grown to 1,000 shops (DEC-39); see EVAL_REPORT. Public-data run waits for D-02 |
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | TODO | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | TODO | Backtest shows blend beats prior-only after 2 months; handles gaps | |
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | TODO | ROP, reorder qty, dead and overstock flags match hand-calculated cases | |
@@ -837,7 +837,7 @@ Each decision returns the top reasons (the indicator values that triggered it), 
 
 | Model | Metric | Target (our own, prototype) |
 |---|---|---|
-| ML2 | WAPE vs seasonal-naive baseline on held-out synthetic shops | At least 10% lower |
+| ML2 | WAPE vs the peer-median baseline (DEC-37) on held-out synthetic shops | At least 10% lower |
 | ML2 | Pinball loss (alpha 0.1, 0.5, 0.9) | Reported, lower than the unconstrained baseline |
 | ML2 | P10 to P90 empirical coverage | 75% to 85% |
 | ML3 | Rolling-origin WAPE at 1, 2 and 3 months of history | Lower than prior only after 2 months |
@@ -935,6 +935,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-34 | 2026-11-16 | ML2 fixed settings: 300 trees, learning rate 0.05, 15 leaves, seed 42; monotone: competitors -1; homes, schools, transit, banks_atms, size +1; others free. No search except the leaf size (DEC-36) | Simple and reproducible | Full tuning search | ACTIVE |
 | DEC-35 | 2026-11-16 | ML2 model: one LightGBM P50 model with **Huber loss** (delta INR 20,000) and the DEC-34 monotone constraints; P10 = P50 x r10 and P90 = P50 x r90, with r10/r90 the 10th/90th percentile of actual / out-of-fold predicted revenue on the training shops; M-04 re-sets the ratios on the calibration shops (split conformal). Replaces ML_PLAN's "one LightGBM per quantile" | LightGBM refuses monotone constraints with its quantile and L1 objectives; scikit-learn HistGB quantile accepts them but its leaf re-fit breaks them (up to 9.7% of steps). On the 40 calibration shops this option had WAPE 0.244 vs 0.247-0.277 and zero rule breaks. Trade-off: the band width is a fixed share of P50 | sklearn HistGB quantile (rules broken); LightGBM quantile without rules (up to 11% broken); LightGBM L2 mean (worse WAPE) | ACTIVE |
 | DEC-36 | 2026-11-16 | ML2 leaf size (`min_child_samples`) chosen from 20 / 60 / 120 by 5-fold CV grouped by shop **inside the 120 training shops only** (lowest mean pinball of the band; ties to the smaller); the three predictions are sorted per row so P10 <= P50 <= P90 always | With 20-row leaves the trees memorised single shops (12 identical-feature rows each), so the band was too narrow on new shops; choosing on training shops keeps the calibration and test shops untouched | Fixed 20 as first approved; choose on calibration shops (leaks into M-04) | ACTIVE |
+| DEC-37 | 2026-11-16 | ML2 (M-04) baseline for a shop that has not opened is the **peer median**: median monthly revenue of training shops per (city tier, size bucket, month since opening); size buckets are terciles of the training shops' `size_sqft`; an empty cell falls back to (tier, month), then (month). Target: model WAPE at least 10% lower on held-out shops. Seasonal-naive is used only in M-06, where history exists | A shop with no history has no seasonal-naive forecast; decided by the human | Seasonal-naive (needs history); fixed sq ft bucket edges | ACTIVE |
+| DEC-38 | 2026-11-16 | ML2 conformal calibration: split conformal on the ratio actual / P50, calibration shops only, target central coverage **80%** (middle of the 75% to 85% acceptance band), one ratio pair per forecast month with finite-sample ranks (upper = ceil((n+1)(1-alpha/2))-th, lower = floor((n+1)(alpha/2))-th smallest); months pooled to bins 1-3 / 4-6 / 7-12, then all, when a group has under 20 rows; rows re-sorted so 0 < P10 <= P50 <= P90 | A ratio scales with shop size and keeps the monotone rules; approved by the human | Additive residuals; 75% or 85% target | ACTIVE |
+| DEC-39 | 2026-11-16 | Synthetic set grown from 200 to **1,000 shops** (`n_shops` in `data/synthetic/config.yaml`); the DEC-32 split shares stay 60/20/20, so 600 train / 200 calibration / 200 test. Amends DEC-23 and DEC-32. Made **after** the first M-04 test run (40 test shops) showed 94.0% coverage, a miss; no model setting, target or method was changed, and `docs/EVAL_REPORT.md` states this history | With 40 calibration + 40 test shops coverage swung about 7 points between random splits (30 re-splits: mean 80.0%), too noisy to judge a 75% to 85% target; chosen by the human | Report the miss and keep 200 shops; mark M-04 BLOCKED | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -946,6 +949,16 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: M-04 conformal calibration and evaluation report
+
+- `backend/app/ml/calibrate.py`: split conformal on actual / P50 using only the calibration shops, one ratio pair per forecast month, finite-sample ranks, pooling when a month has under 20 rows (DEC-38). Result is written into `model_card.json` under `calibration`; `predict_quantiles` now takes either band and `active_band(card)` picks the calibrated one. `make train` runs training then calibration.
+- `eval/forecast_eval.py` (`make eval`): the only code that reads the test shops. Peer-median baseline (DEC-37), WAPE, pinball at 0.1 / 0.5 / 0.9, coverage overall and by month, city tier and size bucket, interval width, monotone probe. Writes `docs/EVAL_REPORT.md`; hand-written notes come from `eval/forecast_notes.md`.
+- **First result was a miss:** with 200 shops (40 test) coverage was 94.0% against a 75% to 85% target. 30 random re-splits showed mean 80.0%, SD 7 points: too few shops to measure it. The human chose to grow the synthetic set to 1,000 shops (DEC-39; 600 / 200 / 200). No model setting, target or method changed. This history is in the report.
+- Result on the 200 test shops (SYNTHETIC): WAPE 0.197 vs peer median 0.313 (37.0% lower, target 10%); coverage 80.5% (target 75% to 85%); pinball P10 / P50 / P90 7,407 / 21,067 / 10,631; 0 monotone breaks in 302,400 checks; band always ordered and positive. Leaf CV now picks 20.
+- Honest caveats (in the report): tails are uneven (about 6% below P10, 14% above P90); small shops are over-covered (87.7%) while medium and large sit at 77%; month 1 is weakest.
+- Tests: `tests/test_calibrate.py` (9). `tests/test_synthetic.py` generates 200 shops for speed and checks the config asks for 1,000.
+- Next person: `make synth` now takes about a minute and writes about 180 MB (git-ignored). The public-data method check (D-02) is still open.
 
 ## 2026-11-16: M-03 ML2 training
 

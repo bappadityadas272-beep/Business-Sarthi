@@ -120,7 +120,7 @@ Each decision returns the top reasons (the indicator values that triggered it), 
 
 | Model | Metric | Target (our own, prototype) |
 |---|---|---|
-| ML2 | WAPE vs seasonal-naive baseline on held-out synthetic shops | At least 10% lower |
+| ML2 | WAPE vs the peer-median baseline (DEC-37) on held-out synthetic shops | At least 10% lower |
 | ML2 | Pinball loss (alpha 0.1, 0.5, 0.9) | Reported, lower than the unconstrained baseline |
 | ML2 | P10 to P90 empirical coverage | 75% to 85% |
 | ML3 | Rolling-origin WAPE at 1, 2 and 3 months of history | Lower than prior only after 2 months |

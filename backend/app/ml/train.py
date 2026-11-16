@@ -32,7 +32,7 @@ DATA_DIR = REPO_ROOT / "data" / "synthetic" / "out"
 MODEL_DIR = BACKEND_DIR / "data" / "models" / "ml2"
 MODEL_FILE = "ml2_p50.joblib"
 ALPHAS = (0.1, 0.5, 0.9)
-SPLIT = {"train": 0.6, "calibration": 0.2, "test": 0.2}       # by shop: 120 / 40 / 40 of 200 (DEC-32)
+SPLIT = {"train": 0.6, "calibration": 0.2, "test": 0.2}       # by shop: 600 / 200 / 200 (DEC-32, DEC-39)
 PARAMS = {                                                   # fixed (DEC-34, DEC-35) except the leaf size
     "objective": "huber", "alpha": 20000.0,                  # Huber delta in INR per month
     "n_estimators": 300, "learning_rate": 0.05, "num_leaves": 15,
@@ -65,10 +65,24 @@ def fit_p50(X: pd.DataFrame, y, leaf: int, seed: int) -> lgb.LGBMRegressor:
     return m.fit(X, y)
 
 
-def predict_quantiles(model: lgb.LGBMRegressor, ratios: dict[str, float], X: pd.DataFrame) -> np.ndarray:
-    """(n, 3) array of P10, P50, P90. Positive ratios keep the monotone shape; sorting guards against r10 > 1."""
-    p50 = np.maximum(model.predict(X[FEATURES]), 0.0)
-    return np.sort(np.column_stack([p50 * ratios["r10"], p50, p50 * ratios["r90"]]), axis=1)
+def active_band(card: dict) -> dict:
+    """The band to use for forecasts: the conformal calibration (M-04) if present, else the training OOF ratios."""
+    return card.get("calibration") or card["band"]
+
+
+def predict_quantiles(model: lgb.LGBMRegressor, band: dict, X: pd.DataFrame) -> np.ndarray:
+    """(n, 3) array of P10, P50, P90 with 0 < P10 <= P50 <= P90.
+
+    `band` is either {"r10", "r90"} (one ratio pair) or a calibration block with "by_month" (a pair per month k).
+    Ratios are positive and depend only on k, so the monotone rules of P50 carry over to P10 and P90."""
+    p50 = np.maximum(model.predict(X[FEATURES]), 1.0)
+    if "by_month" in band:
+        bm = band["by_month"]
+        lo = np.array([bm[str(int(k))]["r10"] for k in X["k"]])
+        hi = np.array([bm[str(int(k))]["r90"] for k in X["k"]])
+    else:
+        lo, hi = band["r10"], band["r90"]
+    return np.sort(np.column_stack([p50 * lo, p50, p50 * hi]), axis=1)
 
 
 def band_ratios(y: np.ndarray, p50: np.ndarray) -> dict[str, float]:
@@ -143,7 +157,7 @@ def train(data_dir: Path = DATA_DIR, out: Path = MODEL_DIR, seed: int = 42) -> d
                  "source": "train_oof", **ratios},
         "files": {"p50": MODEL_FILE}, "files_sha256": {MODEL_FILE: _sha256(out / MODEL_FILE)},
         "metrics_calibration_set_before_conformal": metrics,
-        "calibration": None,                                  # filled by M-04 (split conformal on the ratios)
+        "calibration": None,                                  # filled by app.ml.calibrate (M-04)
     }
     (out / "model_card.json").write_text(json.dumps(card, indent=2) + "\n", encoding="utf-8")
     return card

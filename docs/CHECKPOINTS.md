@@ -6,7 +6,7 @@
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-04"
+  current_focus: "B-02"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -32,7 +32,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | DONE | Generates 200 shops x 24 months; two runs with same seed are identical; every file has `is_synthetic` metadata | v1.1 after human review: floor 2,000 (0.5% of shops at it), per-shop +/-10% effect strength, festival uplift per category, 2 demo shops; 11 tests in tests/test_synthetic.py; DEC-23 to DEC-30 |
+| D-01 | Synthetic data generator per ML_PLAN section 2 (config.yaml, seed, `--demo`) | F1 | P0 | S-01 | DONE | Generates 1,000 shops x 24 months (DEC-39; was 200); two runs with same seed are identical; every file has `is_synthetic` metadata | v1.1 after human review: floor 2,000 (0.5% of shops at it), per-shop +/-10% effect strength, festival uplift per category, 2 demo shops; 11 tests in tests/test_synthetic.py; DEC-23 to DEC-30 |
 | D-02 | Pick and **licence-check** one public retail dataset; document in `data/PUBLIC_DATA.md` (name, URL, licence, date checked) | F1 | P1 | S-01 | TODO | Licence permits our use, or dataset replaced | Do not commit the raw data if the licence forbids |
 | D-03 | Scheme KB v0: 5 to 8 entries from official pages, `verified:false`, with source URL and `last_verified` | F4 | P1 | S-01 | TODO | JSON validates against schema; every entry has a source URL | Human verification is R-04 |
 | D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | DONE | Loader validates every file with Pydantic | Loader `app/rules.py`; 8th file `investment_split.yaml` added (DEC-22); drafted values approved as assumptions (DEC-21) |
@@ -61,7 +61,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-01 | OSM client (Overpass + Nominatim), cache table, feature extractor | F2 | P0 | B-04 | TODO | Given a pin, returns counts of competitors, homes, schools, transit; second call hits cache; User-Agent set | Mock responses in tests |
 | M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | TODO | Score and top drivers returned; scenario tests pass | |
 | M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
-| M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | TODO | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | Also run on public data if D-02 done |
+| M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | DONE | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | SYNTHETIC, 200 test shops: WAPE 0.197 vs peer median 0.313 (37% lower); coverage 80.5%; 0 monotone breaks. First run on 200 shops missed coverage (94.0%), data grown to 1,000 shops (DEC-39); see EVAL_REPORT. Public-data run waits for D-02 |
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | TODO | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | TODO | Backtest shows blend beats prior-only after 2 months; handles gaps | |
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | TODO | ROP, reorder qty, dead and overstock flags match hand-calculated cases | |
