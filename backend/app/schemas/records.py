@@ -67,6 +67,41 @@ class StockItemOut(BaseModel):
     stock_value: float                               # on_hand x cost
 
 
+class StockAdviceItem(BaseModel):
+    item_id: int
+    name: str
+    category: str
+    unit: str
+    abc: Literal["A", "B", "C"]
+    on_hand: float
+    stock_value: float
+    demand_source: Literal["own_sales", "category_average", "none"]
+    history_days: int
+    mean_daily_demand: float | None                  # None: a new item with no other item in its category
+    std_daily_demand: float | None
+    reorder_point: float | None
+    reorder_now: bool
+    reorder_qty: float | None
+    cover_days: float | None                         # on hand / mean daily demand
+    days_since_last_sale: int | None
+    dead_stock: bool
+    overstock: bool
+    stockout_days: int
+
+
+class StockAdviceOut(BaseModel):
+    """Estimates from the shop's own stock moves and the rules in data/rules/stock.yaml (assumptions)."""
+    as_of: date
+    is_estimate: bool = True
+    items: list[StockAdviceItem]
+    reorder_list: list[int]                          # item ids to reorder now: A items first, then least cover
+    dead_stock_value: float
+    overstock_value: float
+    stockout_days: int                               # days in the window on which an active item ended at zero
+    window_days: int
+    settings: dict[str, float]
+
+
 class MoveIn(BaseModel):
     """`qty` is positive for purchase, sale and waste (the kind gives the direction); `adjust` is signed."""
     item_id: int

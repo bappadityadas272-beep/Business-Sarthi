@@ -163,6 +163,31 @@ class Blend(_Header):
         return n_days / (n_days + self.k) if n_days > 0 else 0.0
 
 
+# ---- stock.yaml ----
+class Stock(_Header):
+    z: float = Field(ge=0)
+    lead_time_days: int = Field(ge=1)
+    cover_days: int = Field(ge=1)
+    dead_no_sale_days: int = Field(ge=1)
+    overstock_cover_days: int = Field(ge=1)
+    abc_a_share: float = Field(gt=0, lt=1)
+    abc_b_share: float = Field(ge=0, lt=1)
+    abc_window_days: int = Field(ge=1)
+    demand_halflife_days: float = Field(gt=0)
+    ignore_empty_shelf_days: bool
+    std_window_days: int = Field(ge=2)
+    new_item_below_days: int = Field(ge=0)
+    stockout_window_days: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "Stock":
+        if self.abc_a_share + self.abc_b_share > 1:
+            raise ValueError("abc_a_share + abc_b_share must not exceed 1")
+        if self.overstock_cover_days <= self.cover_days:
+            raise ValueError("overstock_cover_days must be above cover_days")
+        return self
+
+
 # ---- actions.yaml ----
 class Action(_Strict):
     id: str = Field(pattern=r"^[a-z_]+$")
@@ -323,6 +348,7 @@ FILES: dict[str, type[_Header]] = {
     "review_rules.yaml": ReviewRules,
     "alert_rules.yaml": AlertRules,
     "blend.yaml": Blend,
+    "stock.yaml": Stock,
     "actions.yaml": Actions,
     "location_weights.yaml": LocationWeights,
     "product_mix.yaml": ProductMix,
@@ -336,6 +362,7 @@ class Rules(_Strict):
     review: ReviewRules
     alerts: AlertRules
     blend: Blend
+    stock: Stock
     actions: Actions
     location: LocationWeights
     product_mix: ProductMix
@@ -359,6 +386,7 @@ def load_rules(rules_dir: Path = RULES_DIR) -> Rules:
     f = {name: load_file(rules_dir / name, model) for name, model in FILES.items()}
     return Rules(
         review=f["review_rules.yaml"], alerts=f["alert_rules.yaml"], blend=f["blend.yaml"],
+        stock=f["stock.yaml"],
         actions=f["actions.yaml"], location=f["location_weights.yaml"],
         product_mix=f["product_mix.yaml"], expansion=f["expansion.yaml"],
         investment=f["investment_split.yaml"], osm=f["osm_tags.yaml"],

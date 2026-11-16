@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "M-07 stock advice"
+  current_focus: "M-09 alert engine"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -164,7 +164,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | DONE | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | SYNTHETIC, 200 test shops: WAPE 0.197 vs peer median 0.313 (37% lower); coverage 80.5%; 0 monotone breaks. First run on 200 shops missed coverage (94.0%), data grown to 1,000 shops (DEC-39); see EVAL_REPORT. Public-data run waits for D-02 |
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | DONE | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | Endpoint + service; margin, wage and payback extension are labelled assumptions (DEC-48 to DEC-52); confidence low under mock OSM by design |
 | M-06 | Re-forecast (ML3) | F5 | P0 | M-05, B-05 | DONE | Backtest shows blend beats prior-only after 2 months; handles gaps | Met on synthetic shops: blend WAPE 8.8% vs prior-only 19.5% at 2 months (k = 10, DEC-55). Honest notes in EVAL_REPORT |
-| M-07 | Stock advice (ML4) | F3 | P0 | B-06 | TODO | ROP, reorder qty, dead and overstock flags match hand-calculated cases | |
+| M-07 | Stock advice (ML4) | F3 | P0 | B-06 | DONE | ROP, reorder qty, dead and overstock flags match hand-calculated cases | Hand-calculated cases pass (17 tests). Simulation on synthetic shops: 4.05 vs 9.57 stock-out days per 30 at 0.95x stock, met only after DEC-59 (first version 1.44x, missed) |
 | M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | TODO | 20 labelled scenarios all give the expected decision | |
 | M-09 | Alert engine (ML6) | F6 | P0 | B-05, B-07, M-07, D-04 | TODO | Injected dips detected (recall at least 90%); false alarms under 1 per shop per month | |
 | M-10 | Expansion simulator (ML9) | F8 | P2 | M-06 | TODO | Returns payback range and P(payback<12m) for 3 options | Assumptions flagged in output |
@@ -656,7 +656,7 @@ Business-Sarthi/
     kb/                 schemes.json (verified flags), sources.md
     rules/              review_rules.yaml, alert_rules.yaml, osm_tags.yaml, ...
     osm_mock/           hand-made mock OSM answers (OSM_MODE=mock)
-  eval/                 forecast_eval.py, reforecast_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
+  eval/                 forecast_eval.py, reforecast_eval.py, stock_eval.py, parts.py, report_parts/, chat_eval.jsonl, chat_eval.py
   .env.example
   Makefile
 ```
@@ -807,7 +807,7 @@ Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
 - **Dead stock:** an item with no sale in 30 days and on-hand above 0.
 - **Overstock:** on-hand above 21 days of cover.
 - **ABC tagging:** top 20 percent of items by revenue are A items; alerts prioritise them.
-- **Demand estimate:** exponentially weighted mean of daily unit sales, per item (falls back to the category average for new items).
+- **Demand estimate:** exponentially weighted mean of daily unit sales, per item (falls back to the category average for new items). Settings and definitions are in `data/rules/stock.yaml` (DEC-57 to DEC-60): half-life 7 days, new item = under 14 days of history, days that ended with an empty shelf are left out, B = next 30 percent of items.
 - **Why:** textbook, transparent, needs only sales and stock logs.
 - **Evaluation:** simulation on synthetic shops: stock-out days and average on-hand days of cover versus a "reorder when empty" baseline.
 
@@ -962,6 +962,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-55 | 2026-11-16 | Re-forecast blend settings (`data/rules/blend.yaml`): **k = 10** and **band multiplier 3.7**, replacing the ML_PLAN starting value k of about 60. k is the value with the lowest blend WAPE in cross-validation on synthetic TRAINING shops (out-of-fold set-up forecasts as the prior); the multiplier is the one whose P10-P90 coverage on training shops is closest to 80% at that k. Both are assumptions valid for synthetic shops only and must be re-tuned on pilot data | The human asked for k to be chosen by cross-validation on training shops and picked this option when shown the trade-off (lowest error, but a band almost as wide as the set-up forecast) | k = 30 with multiplier 1.7 (narrower band, slightly higher error); keep k = 60 with multiplier 1.4 | ACTIVE |
 | DEC-56 | 2026-11-16 | Re-forecast details not fixed by ML_PLAN, **taken by the assistant and to be confirmed by the human**: the ETS trend is damped; no re-forecast below 7 logged days; the band rescale (observed error / expected half-width) is kept within 0.5 to 2.0; the own-model and prior spreads are combined as a root of the sum of squares weighted by w and 1 - w; missing days already past in the running month are estimated, never counted as zero; the origin of the API re-forecast is yesterday by the app clock; the result is never above confidence `medium` (as DEC-50) | Needed to make ML_PLAN section 5 computable; each is the simplest reading | Undamped trend; no limits on the rescale; origin = today | ACTIVE |
 | DEC-57 | 2026-11-16 | Stock advice (M-07) choices by the human: the demand half-life is chosen by comparing 7 and 14 days in the synthetic simulation; an item is `new` (falls back to the category average) below 14 days of history; the simulation treats each synthetic category as one item with demand in rupees | ML_PLAN section 6 gives no smoothing speed or definition of a new item, and the synthetic data has no item level | Fixed 7-day half-life; new below 7 days; extend the generator with item-level sales | ACTIVE |
+| DEC-58 | 2026-11-16 | Stock advice definitions chosen by the human: ABC = A top 20% of items by revenue, B the next 30%, C the rest (an item with no sales is always C); ABC revenue is summed over the last 90 days; a **stock-out day** is a day on which at least one active item (sold in the last 30 days) ended with zero or less on hand, counted over the last 90 days; in the simulation the `reorder when empty` baseline orders the same 7 days of demand with the same lead time | ML_PLAN section 6 defines only class A and no stock-out measure; the baseline must differ only in when it orders | A or other only; 30-day or all-history ABC window; only A items or item-days for stock-outs; a 14-day baseline order | ACTIVE |
+| DEC-59 | 2026-11-17 | Days on which an item ended at zero are left out of its demand estimate (`ignore_empty_shelf_days: true` in `data/rules/stock.yaml`), in the API and in the simulation | With such days counted as low-sales days the rule missed the ML4 stock limit (1.44x the baseline's average stock against a limit of 1.25x). The human chose this correction when shown the result; no threshold was changed and both variants stay in `docs/EVAL_REPORT.md` | Keep the estimate and report the target as not met; change the target | ACTIVE |
+| DEC-60 | 2026-11-17 | Stock advice details **taken by the assistant and to be confirmed by the human**: reorder is due when on hand is at or below the reorder point; a dead item is never on the reorder list; an item that never sold is dead once it has been on the shelf for 30 days; overstock is not flagged for a dead item; demand uses finished days only (up to yesterday) while on hand includes today; the reorder list is ordered A, B, C and then by least cover; a new item with no other item in its category gets no advice (`demand_source: none`); the advice endpoint needs the `shop_data` consent; the half-life is `similar stock` when within 10% | Needed to make ML_PLAN section 6 computable; each is the simplest reading | Strictly below the reorder point; include today's sales in demand | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -973,6 +976,22 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: M-07 stock advice (ML4) with simulation
+
+- **Checkpoint:** M-07 DONE. Acceptance (hand-calculated cases) passes. ML4 target **met on synthetic shops only after
+  DEC-59**; the first version missed the stock limit. See `docs/EVAL_REPORT.md`, section "ML4 stock advice".
+- `backend/app/ml/reorder.py`: `ewm_mean`, `demand_stats`, `reorder_point`, `reorder_quantity`, `abc_tags`, `advise`
+  (reorder list, dead stock, overstock, ABC, stock-out days). New items (under 14 days) use the category average.
+- `GET /api/shops/{id}/stock/advice` (needs consent; computed on request, nothing stored). Returns the settings used and
+  `is_estimate: true`.
+- `data/rules/stock.yaml` (new, all assumptions) and the `Stock` model in `app/rules.py`; `get_rules().stock`.
+- `eval/stock_eval.py` (`make eval-stock`, under a minute): rule against "reorder when empty", half-life 7 against 14
+  chosen on the calibration shops, reported on test shops, plus the sensitivity to DEC-59.
+- Tests: `tests/test_reorder.py` (17), all expected numbers worked out by hand in comments.
+- **Honest findings:** the rule still ends about 4 item-days in 30 with an empty shelf (6% of demand lost) on synthetic
+  shops; the baseline is a strawman; the app does not know what is on order.
+- **Next person:** DEC-60 (and DEC-56) list details the assistant chose and the human has not yet confirmed.
 
 ## 2026-11-16: M-06 re-forecast (ML3) with rolling-origin backtest
 

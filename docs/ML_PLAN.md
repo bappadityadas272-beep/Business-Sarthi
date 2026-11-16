@@ -84,7 +84,7 @@
 - **Dead stock:** an item with no sale in 30 days and on-hand above 0.
 - **Overstock:** on-hand above 21 days of cover.
 - **ABC tagging:** top 20 percent of items by revenue are A items; alerts prioritise them.
-- **Demand estimate:** exponentially weighted mean of daily unit sales, per item (falls back to the category average for new items).
+- **Demand estimate:** exponentially weighted mean of daily unit sales, per item (falls back to the category average for new items). Settings and definitions are in `data/rules/stock.yaml` (DEC-57 to DEC-60): half-life 7 days, new item = under 14 days of history, days that ended with an empty shelf are left out, B = next 30 percent of items.
 - **Why:** textbook, transparent, needs only sales and stock logs.
 - **Evaluation:** simulation on synthetic shops: stock-out days and average on-hand days of cover versus a "reorder when empty" baseline.
 

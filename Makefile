@@ -2,7 +2,7 @@
 #   docker compose run --rm -w /repo backend make train
 # (Git Bash: export MSYS_NO_PATHCONV=1 first.)
 SYNTH := data/synthetic/out
-.PHONY: help synth train eval eval-reforecast test lint
+.PHONY: help synth train eval eval-reforecast eval-stock test lint
 
 help:
 	@echo "make synth   regenerate synthetic data (+ demo shops) in $(SYNTH)/"
@@ -26,6 +26,9 @@ eval:
 
 eval-reforecast:
 	cd backend && OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python ../eval/reforecast_eval.py --write
+
+eval-stock:
+	cd backend && python ../eval/stock_eval.py --write
 
 test:
 	cd backend && pytest -q

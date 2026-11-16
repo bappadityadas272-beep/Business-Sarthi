@@ -1,0 +1,19 @@
+# ML4 stock advice (ML_PLAN section 6). Every number here is an assumption for the prototype.
+version: 1
+source: "ML_PLAN section 6; DEC-57, DEC-58, DEC-59"
+assumption: true
+z: 1.28                          # safety factor, about 90% service level (ML_PLAN)
+lead_time_days: 2                # days between ordering and receiving (ML_PLAN default; not yet per supplier)
+cover_days: 7                    # reorder quantity = cover_days x mean daily demand - on hand
+dead_no_sale_days: 30            # dead stock: on hand > 0 and no sale for this many days
+overstock_cover_days: 21         # overstock: on hand above this many days of demand
+abc_a_share: 0.20                # A = top 20% of items by revenue (ML_PLAN)
+abc_b_share: 0.30                # B = the next 30% (textbook convention, DEC-58); the rest are C
+abc_window_days: 90              # revenue window for ABC, same as the review period (DEC-58)
+demand_halflife_days: 7          # exponentially weighted mean of daily unit sales; 7 vs 14 compared in
+                                 #   eval/stock_eval.py (DEC-57)
+ignore_empty_shelf_days: true    # days on which the item ended at zero are left out of the demand estimate,
+                                 #   because sales on such a day understate demand (DEC-59)
+std_window_days: 28              # spread of daily demand over the last 28 counted days (DEC-57)
+new_item_below_days: 14          # below this many days of history an item uses its category average (DEC-57)
+stockout_window_days: 90         # stock-out days are counted over this window (DEC-58)

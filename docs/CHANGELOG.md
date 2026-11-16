@@ -2,6 +2,22 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: M-07 stock advice (ML4) with simulation
+
+- **Checkpoint:** M-07 DONE. Acceptance (hand-calculated cases) passes. ML4 target **met on synthetic shops only after
+  DEC-59**; the first version missed the stock limit. See `docs/EVAL_REPORT.md`, section "ML4 stock advice".
+- `backend/app/ml/reorder.py`: `ewm_mean`, `demand_stats`, `reorder_point`, `reorder_quantity`, `abc_tags`, `advise`
+  (reorder list, dead stock, overstock, ABC, stock-out days). New items (under 14 days) use the category average.
+- `GET /api/shops/{id}/stock/advice` (needs consent; computed on request, nothing stored). Returns the settings used and
+  `is_estimate: true`.
+- `data/rules/stock.yaml` (new, all assumptions) and the `Stock` model in `app/rules.py`; `get_rules().stock`.
+- `eval/stock_eval.py` (`make eval-stock`, under a minute): rule against "reorder when empty", half-life 7 against 14
+  chosen on the calibration shops, reported on test shops, plus the sensitivity to DEC-59.
+- Tests: `tests/test_reorder.py` (17), all expected numbers worked out by hand in comments.
+- **Honest findings:** the rule still ends about 4 item-days in 30 with an empty shelf (6% of demand lost) on synthetic
+  shops; the baseline is a strawman; the app does not know what is on order.
+- **Next person:** DEC-60 (and DEC-56) list details the assistant chose and the human has not yet confirmed.
+
 ## 2026-11-16: M-06 re-forecast (ML3) with rolling-origin backtest
 
 - **Checkpoint:** M-06 DONE. Target (blend beats prior-only after 2 months) **met on synthetic shops**; see the honest
