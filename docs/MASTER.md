@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "B-01"
+  current_focus: "D-04"
   blockers: []
   demo_path_ready: false
   notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
@@ -142,7 +142,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| B-01 | SQLAlchemy models and Alembic migration for ARCHITECTURE section 7 | all | P0 | S-02 | TODO | `alembic upgrade head` creates all tables; model tests pass | |
+| B-01 | SQLAlchemy models and Alembic migration for ARCHITECTURE section 7 | all | P0 | S-02 | DONE | `alembic upgrade head` creates all tables; model tests pass | 13 tables; migration 0001; FK pragma on; unique (shop, day, category) on daily_log for B-05 |
 | B-02 | Mock OTP auth + JWT | all | P0 | B-01 | TODO | Request and verify OTP returns JWT; wrong OTP is rejected; protected route needs token | OTP printed to server log in `DEV_MODE` |
 | B-03 | Profile, language, consent endpoints | all | P0 | B-02 | TODO | Shop creation refused (403) without consent record | |
 | B-04 | Shops create and read | F1 | P0 | B-03 | TODO | Owner can create and read only own shops | |
@@ -930,6 +930,15 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: B-01 SQLAlchemy models and Alembic migration
+
+- `app/db.py` (engine, session, `Base`; SQLite foreign keys switched on with a pragma) and `app/models/__init__.py` with all 13 tables from ARCHITECTURE section 7.
+- Alembic set up in `backend/alembic/`; `env.py` reads `DATABASE_URL` from app settings (the `alembic.ini` URL is unused). First migration `0001`. Batch mode on for SQLite ALTERs.
+- Constraints: unique `user.phone`; unique `(shop_id, day, category)` on `daily_log` (B-05 upsert relies on it); every child row cascades on delete (B-11 relies on it).
+- Tests `tests/test_models.py`: `alembic upgrade head` creates every table, round trip, unique constraint, FK enforcement, cascade delete.
+- Not included: the OSM cache table (added by M-01 in its own migration).
+- Run: `docker compose run --rm backend alembic upgrade head`.
 
 ## 2026-11-16: S-02 backend skeleton
 
