@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     )
 
     dev_mode: bool = True
+    scheduler_enabled: bool = True                   # in-process daily job (B-09); the tests switch it off
+    scheduler_interval_minutes: int = 60             # how often the job looks; the work itself is once a day
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'data' / 'sarthi.db').as_posix()}"
     jwt_secret: str = DEV_JWT_SECRET
     llm_provider: Literal["gemini", "claude", "stub"] = "stub"

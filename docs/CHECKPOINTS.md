@@ -6,7 +6,7 @@
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "B-09 scheduler and advance-time"
+  current_focus: "D-05 demo seed"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -50,7 +50,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | B-06 | Stock items, moves and assets | F3 | P0 | B-04 | DONE | On-hand stock equals sum of moves | On-hand = sum of moves (never stored); bulk moves all-or-nothing; input defaults in DEC-54 await confirmation |
 | B-07 | Loans and EMI schedule | F6 | P0 | B-04 | DONE | Next due date computed correctly across month ends | start_date + tenure_months (DEC-53, migration 0004); schedule is dates and EMI only |
 | B-08 | Alerts store, resolve, notifications | F6 | P0 | B-04 | DONE | Alert create, list, resolve works; notifications unread count | Alert create, list, resolve (with mute) and notifications unread count work; 6 tests. Refresh is on request until B-09 adds the daily job. DEC-68 details await confirmation |
-| B-09 | APScheduler jobs and `POST /api/dev/advance-time` | F5,F6 | P0 | B-05, M-08, M-09 | TODO | Advancing 90 days triggers a review and stores it | Only when `DEV_MODE=1` |
+| B-09 | APScheduler jobs and `POST /api/dev/advance-time` | F5,F6 | P0 | B-05, M-08, M-09 | DONE | Advancing 90 days triggers a review and stores it | Only when `DEV_MODE=1`. Advancing 90 days stores a review and a review_ready notification; 6 tests. Demo clock is in memory (resets on restart). DEC-69 details await confirmation |
 | B-10 | SOS summary endpoint | F6 | P1 | B-08 | TODO | Returns a shareable summary of alerts and EMI status | |
 | B-11 | Delete-my-data endpoint | all | P1 | B-04 | TODO | After delete, no rows remain for the user | |
 

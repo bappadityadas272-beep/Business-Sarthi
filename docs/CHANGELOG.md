@@ -2,6 +2,20 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: B-09 scheduler jobs and demo advance-time
+
+- **Checkpoint:** B-09 DONE. Acceptance: advancing 90 days triggers a review and stores it (test
+  `test_advancing_90_days_triggers_a_review_and_stores_it`).
+- `backend/app/jobs/`: `review_job.py` (`due_date`, `next_due_date`, `run`: stores the due review once and adds a
+  `review_ready` notification), `alert_job.py`, `scheduler.py` (`run_day` for all consented shops; APScheduler job
+  every 60 minutes, started in the app lifespan).
+- `backend/app/api/dev.py`: `POST /api/dev/advance-time`, `GET /api/dev/clock`. Refused with 403 unless DEV_MODE is on.
+- Settings: `SCHEDULER_ENABLED`, `SCHEDULER_INTERVAL_MINUTES` (`.env.example` updated).
+- Tests: `tests/test_jobs.py` (6).
+- **Known limits:** the demo clock is in memory, so a restart returns to the real date while the data stays where it
+  was; DEV_MODE defaults to on in this prototype and must be off in any real deployment (it also exposes the mock OTP).
+- **Next person:** DEC-69 lists details the assistant chose; the human has not yet confirmed them.
+
 ## 2026-11-17: B-08 alerts store, resolve with mute, notifications
 
 - **Checkpoint:** B-08 DONE. Acceptance: alert create, list, resolve works; notifications unread count works.
