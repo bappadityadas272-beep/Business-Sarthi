@@ -2,6 +2,15 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: S-02 backend skeleton
+
+- `backend/pyproject.toml` with exact pins (DEC-19); FastAPI app `app/main.py`, settings loader `app/config.py` (reads repo-root `.env`, empty values fall back to defaults, `LLM_PROVIDER` defaults to `stub`), `GET /api/health`.
+- Tests: `tests/test_health.py` (health, `/docs`, config defaults).
+- **How to run:** `docker compose run --rm backend pytest` for tests; `docker compose up backend` serves http://localhost:8000/docs. In Git Bash, set `MSYS_NO_PATHCONV=1` first.
+- Why Docker: Windows Smart App Control blocks numpy/pandas/SQLAlchemy/LightGBM DLLs on the dev machine (DEC-20, supersedes DEC-18). The image installs `libgomp1` for LightGBM.
+- Ruff `EXE` rules are ignored because Windows bind mounts show every file as executable.
+- Known harmless warning: Starlette deprecation about `httpx` in the test client (upstream).
+
 ## 2026-11-16: S-01 repo scaffold
 
 - Moved `AGENTS.md` back to the repo root so `tools/build_master.py` works again (it was broken by the rename into `docs/`). DEC-16.

@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "S-02"
+  current_focus: "B-01"
   blockers: []
   demo_path_ready: false
   notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
@@ -123,7 +123,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
 | S-01 | Repo scaffold: folders from ARCHITECTURE section 9, `.gitignore` (db, `.env`, models, node_modules), MIT `LICENSE`, `.env.example` | all | P0 | - | DONE | Tree matches layout; `git status` clean of secrets | LICENSE deferred pending team approval (DEC-17); AGENTS.md moved back to root (DEC-16) |
-| S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | TODO | `pytest` passes a health test; `uvicorn` serves `/docs` | |
+| S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | DONE | `pytest` passes a health test; `uvicorn` serves `/docs` | Runs in Docker (DEC-20): `docker compose run --rm backend pytest` |
 | S-03 | Frontend skeleton: Vite + React + TS + Tailwind, router, empty pages | all | P0 | S-01 | TODO | `npm run build` succeeds; home page renders | |
 | S-04 | Makefile (`setup`, `dev`, `test`, `lint`, `train`, `seed`) | all | P1 | S-02, S-03 | TODO | `make test` runs both test suites | |
 | S-05 | GitHub Actions CI (lint, type check, tests) | all | P1 | S-04 | TODO | CI green on a pull request | |
@@ -916,8 +916,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-15 | 2026-11-16 | Voice: browser Web Speech API with text fallback | Free and no server cost; works for Hindi on supported browsers | Paid speech APIs | ACTIVE |
 | DEC-16 | 2026-11-16 | `AGENTS.md` lives at the repo root (moved back from `docs/`) | Matches ARCHITECTURE section 9; `tools/build_master.py` expects it there | Keep in `docs/` and change the script | ACTIVE |
 | DEC-17 | 2026-11-16 | No `LICENSE` file yet; add one after team approval | The team has not approved a licence | MIT, Apache-2.0 now | ACTIVE |
-| DEC-18 | 2026-11-16 | Backend runs on Python 3.14 in `backend/.venv`; `requires-python >=3.11` | 3.14 is installed on the dev machine; 3.11+ stays supported for teammates | Install 3.12 | ACTIVE |
+| DEC-18 | 2026-11-16 | Backend runs on Python 3.14 in `backend/.venv`; `requires-python >=3.11` | 3.14 is installed on the dev machine; 3.11+ stays supported for teammates | Install 3.12 | SUPERSEDED by DEC-20 |
 | DEC-19 | 2026-11-16 | Dependencies: pip + venv with exact `==` pins in `backend/pyproject.toml` | No extra tooling needed | uv, Poetry | ACTIVE |
+| DEC-20 | 2026-11-16 | Backend dev, tests and scripts run in Docker (`python:3.14-slim`, `docker-compose.yml`), not a Windows venv | Windows Smart App Control blocked the compiled DLLs of numpy, pandas, SQLAlchemy, scikit-learn and LightGBM; Linux containers are not affected, and the security setting stays on | Pin older wheels, turn off Smart App Control (cannot be re-enabled), WSL distro | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -929,6 +930,15 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: S-02 backend skeleton
+
+- `backend/pyproject.toml` with exact pins (DEC-19); FastAPI app `app/main.py`, settings loader `app/config.py` (reads repo-root `.env`, empty values fall back to defaults, `LLM_PROVIDER` defaults to `stub`), `GET /api/health`.
+- Tests: `tests/test_health.py` (health, `/docs`, config defaults).
+- **How to run:** `docker compose run --rm backend pytest` for tests; `docker compose up backend` serves http://localhost:8000/docs. In Git Bash, set `MSYS_NO_PATHCONV=1` first.
+- Why Docker: Windows Smart App Control blocks numpy/pandas/SQLAlchemy/LightGBM DLLs on the dev machine (DEC-20, supersedes DEC-18). The image installs `libgomp1` for LightGBM.
+- Ruff `EXE` rules are ignored because Windows bind mounts show every file as executable.
+- Known harmless warning: Starlette deprecation about `httpx` in the test client (upstream).
 
 ## 2026-11-16: S-01 repo scaffold
 

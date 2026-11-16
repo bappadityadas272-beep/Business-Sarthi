@@ -6,7 +6,7 @@
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "S-02"
+  current_focus: "B-01"
   blockers: []
   demo_path_ready: false
   notes: "Working order set by the human: S-01, S-02, B-01, D-04, D-01."
@@ -23,7 +23,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
 | S-01 | Repo scaffold: folders from ARCHITECTURE section 9, `.gitignore` (db, `.env`, models, node_modules), MIT `LICENSE`, `.env.example` | all | P0 | - | DONE | Tree matches layout; `git status` clean of secrets | LICENSE deferred pending team approval (DEC-17); AGENTS.md moved back to root (DEC-16) |
-| S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | TODO | `pytest` passes a health test; `uvicorn` serves `/docs` | |
+| S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | DONE | `pytest` passes a health test; `uvicorn` serves `/docs` | Runs in Docker (DEC-20): `docker compose run --rm backend pytest` |
 | S-03 | Frontend skeleton: Vite + React + TS + Tailwind, router, empty pages | all | P0 | S-01 | TODO | `npm run build` succeeds; home page renders | |
 | S-04 | Makefile (`setup`, `dev`, `test`, `lint`, `train`, `seed`) | all | P1 | S-02, S-03 | TODO | `make test` runs both test suites | |
 | S-05 | GitHub Actions CI (lint, type check, tests) | all | P1 | S-04 | TODO | CI green on a pull request | |

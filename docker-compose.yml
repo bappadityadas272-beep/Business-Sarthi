@@ -1,0 +1,14 @@
+# Dev: `docker compose up backend` serves http://localhost:8000/docs
+# Tests: `docker compose run --rm backend pytest`
+services:
+  backend:
+    build: ./backend
+    working_dir: /repo/backend
+    volumes:
+      - .:/repo
+      - /repo/backend/.venv   # hide any host venv from the container
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8000:8000"
