@@ -2,6 +2,15 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-16: B-03 profile and consent, B-04 shops
+
+- Built and committed together because B-03's acceptance test ("shop creation refused (403) without consent") needs the B-04 endpoint.
+- B-03: `PUT /api/me` (language `hi` or `en`), `GET/POST/DELETE /api/consents`, `GET /api/consents/history`; `app/services/consent.py` (DEC-43). New dependencies in `app/api/deps.py`: `ConsentedUser`, `OwnShop` (read: own shop or 404) and `OwnShopConsented` (write or compute: own shop and active consent). **Use `OwnShopConsented` for every later endpoint that stores or uses shop data.**
+- B-04: `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}`; `shop` gains `name`, `size_sqft`, `city_tier` (DEC-42, migration `0002`). Another owner's shop answers 404, the same as a missing one.
+- API times are always UTC with an offset (`app/schemas/common.py: UtcDatetime`); SQLite returns naive datetimes, which a test caught.
+- Tests: `tests/test_profile_consent.py` (7), `tests/test_shops.py` (6, including migration upgrade and downgrade). Shared fixtures `SHOP` and `consented` in `tests/conftest.py`.
+- Next person: `GET /api/shops` and `GET /api/consents` are additions to the ARCHITECTURE section 8 list (now updated there).
+
 ## 2026-11-16: B-02 mock OTP login and JWT
 
 - `backend/app/services/auth.py`: mock OTP store (DEC-40) and JWT helpers (DEC-41). `backend/app/api/auth.py`: `POST /api/auth/otp/request`, `POST /api/auth/otp/verify`. `backend/app/api/deps.py`: `CurrentUser` dependency (401 with a `code` when the token is missing, bad, expired or its user is gone). `GET /api/me` is the first protected route.

@@ -158,6 +158,9 @@ erDiagram
       int id PK
       int user_id FK
       string shop_type
+      string name
+      float size_sqft
+      int city_tier
       float lat
       float lon
       float budget
@@ -226,8 +229,8 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 |---|---|---|
 | `POST /api/auth/otp/request`, `POST /api/auth/otp/verify` | Mock OTP login, returns JWT | B |
 | `GET/PUT /api/me` | Profile and language | B |
-| `POST/DELETE /api/consents` | Give or withdraw consent | B |
-| `POST /api/shops`, `GET /api/shops/{id}` | Create shop from idea; read | B |
+| `GET/POST/DELETE /api/consents` | List, give or withdraw consent (`shop_data` required, `benchmarking` optional; DEC-43) | B |
+| `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}` | Create shop from idea; list and read own shops | B |
 | `GET /api/shops/{id}/location-score` | Location score, nearby counts, starter mix | M |
 | `POST /api/shops/{id}/forecast` | Set-up forecast and investment split | M |
 | `POST /api/shops/{id}/logs` (bulk), `GET .../logs?from&to` | Daily sales, purchases, expenses | B |

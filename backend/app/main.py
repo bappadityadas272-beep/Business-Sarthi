@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 
-from app.api import auth, health, me
+from app.api import auth, health, me, shops
 
 app = FastAPI(
     title="Business Sarthi API",
     version="0.1.0",
     description="Prototype backend. Forecasts are estimates trained on synthetic data.",
 )
-for module in (health, auth, me):
+for module in (health, auth, me, shops):
     app.include_router(module.router, prefix="/api")

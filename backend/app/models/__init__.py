@@ -41,6 +41,9 @@ class Shop(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = _fk("user.id")
     shop_type: Mapped[str] = mapped_column(String(32), default="kirana")
+    name: Mapped[str | None] = mapped_column(String(80))            # DEC-42
+    size_sqft: Mapped[float | None] = mapped_column(Float)          # DEC-42: ML2 feature, typed by the owner
+    city_tier: Mapped[int | None] = mapped_column(Integer)          # DEC-42: 1, 2 or 3, picked by the owner
     lat: Mapped[float] = mapped_column(Float)
     lon: Mapped[float] = mapped_column(Float)
     budget: Mapped[float] = mapped_column(Float)

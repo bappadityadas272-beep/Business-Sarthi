@@ -106,7 +106,7 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 project_status:
   phase: "1 - backend core in progress"
   last_updated: "2026-11-16"
-  current_focus: "B-03"
+  current_focus: "M-01"
   blockers: []
   demo_path_ready: false
   notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
@@ -144,8 +144,8 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 |---|---|---|---|---|---|---|---|
 | B-01 | SQLAlchemy models and Alembic migration for ARCHITECTURE section 7 | all | P0 | S-02 | DONE | `alembic upgrade head` creates all tables; model tests pass | 13 tables; migration 0001; FK pragma on; unique (shop, day, category) on daily_log for B-05 |
 | B-02 | Mock OTP auth + JWT | all | P0 | B-01 | DONE | Request and verify OTP returns JWT; wrong OTP is rejected; protected route needs token | OTP printed to server log in DEV_MODE and returned as dev_otp (DEC-40); JWT 7 days (DEC-41) |
-| B-03 | Profile, language, consent endpoints | all | P0 | B-02 | TODO | Shop creation refused (403) without consent record | |
-| B-04 | Shops create and read | F1 | P0 | B-03 | TODO | Owner can create and read only own shops | |
+| B-03 | Profile, language, consent endpoints | all | P0 | B-02 | DONE | Shop creation refused (403) without consent record | Purposes shop_data (required) and benchmarking (optional), DEC-43 |
+| B-04 | Shops create and read | F1 | P0 | B-03 | DONE | Owner can create and read only own shops | Adds name, size_sqft, city_tier (DEC-42); other owners get 404 |
 | B-05 | Daily logs bulk create and range read | F3,F5 | P0 | B-04 | TODO | Duplicate (shop, day, category) updates not duplicates; range query correct | |
 | B-06 | Stock items, moves and assets | F3 | P0 | B-04 | TODO | On-hand stock equals sum of moves | |
 | B-07 | Loans and EMI schedule | F6 | P0 | B-04 | TODO | Next due date computed correctly across month ends | |
@@ -524,6 +524,9 @@ erDiagram
       int id PK
       int user_id FK
       string shop_type
+      string name
+      float size_sqft
+      int city_tier
       float lat
       float lon
       float budget
@@ -592,8 +595,8 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 |---|---|---|
 | `POST /api/auth/otp/request`, `POST /api/auth/otp/verify` | Mock OTP login, returns JWT | B |
 | `GET/PUT /api/me` | Profile and language | B |
-| `POST/DELETE /api/consents` | Give or withdraw consent | B |
-| `POST /api/shops`, `GET /api/shops/{id}` | Create shop from idea; read | B |
+| `GET/POST/DELETE /api/consents` | List, give or withdraw consent (`shop_data` required, `benchmarking` optional; DEC-43) | B |
+| `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}` | Create shop from idea; list and read own shops | B |
 | `GET /api/shops/{id}/location-score` | Location score, nearby counts, starter mix | M |
 | `POST /api/shops/{id}/forecast` | Set-up forecast and investment split | M |
 | `POST /api/shops/{id}/logs` (bulk), `GET .../logs?from&to` | Daily sales, purchases, expenses | B |
@@ -940,6 +943,8 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-39 | 2026-11-16 | Synthetic set grown from 200 to **1,000 shops** (`n_shops` in `data/synthetic/config.yaml`); the DEC-32 split shares stay 60/20/20, so 600 train / 200 calibration / 200 test. Amends DEC-23 and DEC-32. Made **after** the first M-04 test run (40 test shops) showed 94.0% coverage, a miss; no model setting, target or method was changed, and `docs/EVAL_REPORT.md` states this history | With 40 calibration + 40 test shops coverage swung about 7 points between random splits (30 re-splits: mean 80.0%), too noisy to judge a 75% to 85% target; chosen by the human | Report the miss and keep 200 shops; mark M-04 BLOCKED | ACTIVE |
 | DEC-40 | 2026-11-16 | Mock OTP (B-02): random 6-digit code, valid 5 minutes, single use, burned after 5 wrong tries, kept in process memory (no table); printed to the server log and returned as `dev_otp` in the response **only when `DEV_MODE` is on**; the response always carries `is_mock: true` | The demo screen can show the code without reading logs; no SMS provider in the prototype (DEC-10); chosen by the human | Server log only; fixed code 123456 | ACTIVE |
 | DEC-41 | 2026-11-16 | Login token: JWT, HS256, signed with `JWT_SECRET`, valid **7 days**, no refresh token; the built-in default secret is refused when `DEV_MODE` is off | Simple for a prototype; chosen by the human | 24 hours; 30 days | ACTIVE |
+| DEC-42 | 2026-11-16 | `shop` table gains `name`, `size_sqft` and `city_tier` (migration 0002). The owner types the name and size and picks tier 1, 2 or 3; the API requires all three (30 to 5,000 sq ft). Amends ARCHITECTURE section 7 | ML2 needs size and city tier (DEC-33) and the table had neither; nothing is guessed from the pin; chosen by the human | Derive tier from the pin with a city list (source not verified); send size and tier with every forecast request | ACTIVE |
+| DEC-43 | 2026-11-16 | Consent purposes: `shop_data` (**required**: store the shop's data and use it for this owner's forecasts, reviews and alerts) and `benchmarking` (optional: anonymised peer comparison later; **no feature uses it yet**). Without an active `shop_data` consent every shop write or computation returns 403 `consent_required`. Withdrawing keeps the history row (`withdrawn_at`), blocks new writes, and leaves stored data until delete-my-data (B-11) | AGENTS rule 5 (consent first), purpose-specific consent; chosen by the human | A single purpose | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -951,6 +956,15 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-16: B-03 profile and consent, B-04 shops
+
+- Built and committed together because B-03's acceptance test ("shop creation refused (403) without consent") needs the B-04 endpoint.
+- B-03: `PUT /api/me` (language `hi` or `en`), `GET/POST/DELETE /api/consents`, `GET /api/consents/history`; `app/services/consent.py` (DEC-43). New dependencies in `app/api/deps.py`: `ConsentedUser`, `OwnShop` (read: own shop or 404) and `OwnShopConsented` (write or compute: own shop and active consent). **Use `OwnShopConsented` for every later endpoint that stores or uses shop data.**
+- B-04: `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}`; `shop` gains `name`, `size_sqft`, `city_tier` (DEC-42, migration `0002`). Another owner's shop answers 404, the same as a missing one.
+- API times are always UTC with an offset (`app/schemas/common.py: UtcDatetime`); SQLite returns naive datetimes, which a test caught.
+- Tests: `tests/test_profile_consent.py` (7), `tests/test_shops.py` (6, including migration upgrade and downgrade). Shared fixtures `SHOP` and `consented` in `tests/conftest.py`.
+- Next person: `GET /api/shops` and `GET /api/consents` are additions to the ARCHITECTURE section 8 list (now updated there).
 
 ## 2026-11-16: B-02 mock OTP login and JWT
 

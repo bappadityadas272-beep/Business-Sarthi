@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.common import UtcDatetime
 
 
 class OtpRequest(BaseModel):
@@ -31,4 +31,4 @@ class Me(BaseModel):
     id: int
     phone: str
     language: str
-    created_at: datetime
+    created_at: UtcDatetime

@@ -7,6 +7,9 @@ from app.db import Base, get_db, make_engine
 from app.main import app
 from app.services import auth
 
+SHOP = {"name": "Test Kirana", "shop_type": "kirana", "lat": 28.61, "lon": 77.21, "size_sqft": 220.0, "city_tier": 2,
+        "budget": 300000.0, "monthly_rent": 9000.0, "staff_count": 1}
+
 
 @pytest.fixture
 def db_factory(tmp_path):
@@ -40,3 +43,10 @@ def login(client: TestClient, phone: str = "+919800000001") -> dict:
 @pytest.fixture
 def auth_headers(client):
     return login(client)
+
+
+@pytest.fixture
+def consented(client, auth_headers):
+    """Logged-in user who has given the required shop_data consent."""
+    assert client.post("/api/consents", headers=auth_headers, json={"purpose": "shop_data"}).status_code == 201
+    return auth_headers
