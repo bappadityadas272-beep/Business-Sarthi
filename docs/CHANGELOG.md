@@ -2,6 +2,14 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-08 smoke set and exit code
+
+- `eval/chat_eval.py` now exits 1 below the 90% groundedness target (2 for a bad question file) and takes `--smoke`.
+- `eval/chat_eval_smoke.jsonl`: 8 smoke questions written by the coding model, each marked `smoke: true` and
+  "SMOKE ONLY". They check the runner, not the chatbot; the 30 real questions are still the team's (DEC-80).
+- Smoke run with Gemini: grounded 88% (7/8, one provider outage), refusals 100%, intent 100%. Below target, reported
+  as is. The live provider returned 503 and 429 on both models during the run.
+
 ## 2026-11-17: C-02 scheme KB loader and index, C-03 scheme matcher
 
 - **C-02 (DEC-85):** `app/rag/` loads and validates `data/kb/schemes.json`, embeds it and saves the vectors to

@@ -70,3 +70,36 @@ def test_runs_end_to_end_with_the_stub(client, synth_small, model_small, tmp_pat
     rows = ev.run(items, StubClient(), demo_dir=synth_small / "demo", model=model_small)
     s = ev.summary(rows, "stub")
     assert s["grounded"] == 1.0 and s["intent_accuracy"] == 1.0 and s["expected_facts_present"] == 1.0, rows
+
+
+def test_smoke_rules(tmp_path):
+    smoke = {"id": "s1", "smoke": True, "question": "x", "expected_intent": "smalltalk"}
+    real = {"id": "r1", "question": "x", "expected_intent": "smalltalk"}
+    with pytest.raises(ev.EvalFileError, match="run with --smoke"):
+        ev.load(write(tmp_path, [real, smoke]))                        # the team's set may not hide smoke lines
+    with pytest.raises(ev.EvalFileError, match="needs"):
+        ev.load(write(tmp_path, [smoke, real]), smoke=True)
+    many = [{**smoke, "id": f"s{i}"} for i in range(ev.SMOKE_MAX + 1)]
+    with pytest.raises(ev.EvalFileError, match=f"at most {ev.SMOKE_MAX}"):
+        ev.load(write(tmp_path, many), smoke=True)
+
+
+def test_shipped_smoke_file_is_labelled_and_runs(synth_small, model_small):
+    items = ev.load(ev.DEFAULT_FILE.with_name("chat_eval_smoke.jsonl"), smoke=True)
+    assert len(items) <= ev.SMOKE_MAX and all("SMOKE ONLY" in it["notes"] for it in items)
+    rows = ev.run(items, StubClient(), demo_dir=synth_small / "demo", model=model_small)
+    s = ev.summary(rows, "stub")
+    assert s["intent_accuracy"] == 1.0 and s["refusal_correct"] == 1.0, [(r["id"], r["intent"], r["refusal"]) for r in rows]
+    assert s["refusal_cases"] == 2
+
+
+def test_exit_code_follows_the_target(monkeypatch, tmp_path, capsys):
+    p = write(tmp_path, [{"id": "a", "question": "x", "expected_intent": "smalltalk"}])
+    row = ev.score({"id": "a", "question": "x", "expected_intent": "smalltalk"}, turn(guard="failed", intent="smalltalk"))
+    monkeypatch.setattr(ev, "run", lambda items, client: [row])
+    monkeypatch.setattr("sys.argv", ["chat_eval", "--file", str(p)])
+    assert ev.main() == 1 and "NOT met" in capsys.readouterr().out
+    monkeypatch.setattr(ev, "run", lambda items, client: [{**row, "grounded": True}])
+    assert ev.main() == 0
+    monkeypatch.setattr("sys.argv", ["chat_eval", "--file", str(tmp_path / "none.jsonl")])
+    assert ev.main() == 2

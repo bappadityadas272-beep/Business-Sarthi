@@ -1,11 +1,17 @@
 """C-08 runner: chatbot groundedness and refusals on the team's question set (DEC-80).
 
 Run from backend/:  python ../eval/chat_eval.py [--file ../eval/chat_eval.jsonl] [--json out.json]
+Smoke run:          python ../eval/chat_eval.py --file ../eval/chat_eval_smoke.jsonl --smoke   (make eval-chat-smoke)
 
 The questions are written by the team, not by the coding model. One JSON object per line of `eval/chat_eval.jsonl`:
   required  id, question, expected_intent (my_numbers | schemes | how_to | smalltalk | out_of_scope)
   optional  shop (ramesh | sunita, default ramesh), expected_refusal (medical | legal | guarantee),
             expected_facts (fact keys such as "operating_profit" whose numbers must appear in the answer), notes
+  smoke     true only in eval/chat_eval_smoke.jsonl: at most 8 questions written by the coding model to check the
+            runner works. They are NOT the C-08 measurement; --smoke is required for them, and the team's file
+            may not contain any.
+
+Exit code: 0 when groundedness meets the target, 1 below it, 2 for a bad question file.
 
 Setting: a throwaway SQLite file with the two SYNTHETIC demo shops (needs `make synth` and `make train`), clock
 moved 2 days and the daily job run, as in the demo (reviews and alerts exist). The provider is the one in .env
@@ -40,6 +46,7 @@ from app.services import chat, clock
 DEFAULT_FILE = Path(__file__).resolve().parent / "chat_eval.jsonl"
 SHOPS = {"ramesh": "+919000000001", "sunita": "+919000000002"}
 GROUNDED_TARGET = 0.90
+SMOKE_MAX = 8
 ADVANCE_DAYS = 2
 KIND = {"INR": "money", "percent": "percent"}
 
@@ -48,7 +55,7 @@ class EvalFileError(ValueError):
     pass
 
 
-def load(path: Path) -> list[dict]:
+def load(path: Path, smoke: bool = False) -> list[dict]:
     if not path.exists():
         raise EvalFileError(f"{path} not found. The team writes the questions (DEC-80); see this file's docstring.")
     items, seen = [], set()
@@ -70,12 +77,17 @@ def load(path: Path) -> list[dict]:
             raise EvalFileError(f"line {n}: shop must be one of {', '.join(SHOPS)}")
         if not isinstance(it.get("expected_facts", []), list):
             raise EvalFileError(f"line {n}: expected_facts must be a list of fact keys")
+        if bool(it.get("smoke")) != smoke:
+            raise EvalFileError(f"line {n}: " + ('every smoke question needs "smoke": true' if smoke else
+                                                   "smoke questions are not part of the C-08 set; run with --smoke"))
         if it["id"] in seen:
             raise EvalFileError(f"line {n}: duplicate id {it['id']}")
         seen.add(it["id"])
         items.append(it)
     if not items:
         raise EvalFileError(f"{path} has no questions")
+    if smoke and len(items) > SMOKE_MAX:
+        raise EvalFileError(f"a smoke file may hold at most {SMOKE_MAX} questions; the real set is the team's")
     return items
 
 
@@ -147,21 +159,25 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--file", type=Path, default=DEFAULT_FILE)
     ap.add_argument("--json", type=Path, help="also write rows and summary to this JSON file")
+    ap.add_argument("--smoke", action="store_true", help=f"run the labelled smoke file (at most {SMOKE_MAX} questions)")
     args = ap.parse_args()
     try:
-        items = load(args.file)
+        items = load(args.file, smoke=args.smoke)
     except EvalFileError as e:
         print(f"chat_eval: {e}", file=sys.stderr)
         return 2
     s = get_settings()
     rows = run(items, llm.get_client(s))
     summ = summary(rows, s.llm_provider)
+    summ["smoke"] = args.smoke
     for r in rows:
         flag = "ok " if r["grounded"] and r["intent_ok"] and r["refusal_ok"] else "BAD"
         print(f"{flag} {r['id']:<8} {r['shop']:<7} {r['language']:<8} intent={r['intent']:<12} guard={r['guard']:<15}"
               f" refusal={r['refusal'] or '-':<9} facts={r['facts_ok']}/{r['facts_checked']}"
               f" {','.join(r['failures'])}")
     print(f"\nSYNTHETIC demo shops, provider={summ['provider']}, {summ['questions']} questions")
+    if args.smoke:
+        print("SMOKE RUN: questions written by the coding model to test the runner; this is NOT the C-08 result.")
     if summ["provider"] == "stub":
         print("NOTE: stub provider; every LLM answer is the template, so groundedness here says nothing about a model.")
     print(f"grounded           {pct(summ['grounded'])} (target {pct(GROUNDED_TARGET)}: "
@@ -173,7 +189,7 @@ def main() -> int:
     if args.json:
         args.json.write_text(json.dumps({"summary": summ, "rows": rows}, ensure_ascii=False, indent=2),
                              encoding="utf-8")
-    return 0
+    return 0 if summ["grounded_target_met"] else 1
 
 
 if __name__ == "__main__":

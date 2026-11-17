@@ -183,7 +183,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | C-05 | Router + prompt builder + language handling | F7 | P0 | C-01, C-04 | DONE | Intent routing correct on 20 sample questions; reply language matches | `app/llm/router.py` (rules first, `<classify>` LLM fallback limited to the 5 labels), `language.py` (hi / hinglish / en), `prompts/system.md`, `prompts/classify.md`, builder in `prompts/__init__.py`, `templates.py` (3 languages, Indian ₹ grouping), `app_help.yaml` (draft); 46 tests: 20 routes, 10 languages, 7 refusals (DEC-78 proposed) |
 | C-06 | Guard (number and citation check) + fallback template | F7 | P0 | C-05 | DONE | Injected wrong number is caught and replaced by the template | `app/llm/guard.py` (DEC-76); `tests/test_guard.py` 19 tests: wrong number, swapped ₹/lakh, Devanagari, other-month number, invented scheme, tool-output injection, "ignore your rules", guarantee/link/script; forced bad stub answer gives the template; every demo template answer passes. Question numbers count as plain only |
 | C-07 | `POST /api/chat` with streaming | F7 | P0 | C-06, C-03, B-03 | DONE | Demo script step 7 works with stub and with a real provider | Built before C-03 (DEC-74). `app/services/chat.py` + `app/api/chat.py`: SSE meta/delta/done after the guard (DEC-73, DEC-79); both turns stored with sources; login + consent + own shop. `tests/test_chat_api.py`: profit question in Hinglish, Hindi and English passes the guard with the code's number. **Missed:** scheme half of step 7 (template only, until D-03, C-02, C-03); live check run 2026-11-17 (`make chat-live`): the old default model was retired (404); with DEC-81 all 6 LLM answers in Hinglish, Hindi and English passed the guard, all via the fallback `gemini-3.5-flash-lite` because `gemini-3.8-flash` was overloaded (503) |
-| C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | BLOCKED | `eval/chat_eval.py` reports groundedness at least 90% | Runner done (`make eval-chat`, DEC-80; `tests/test_chat_eval.py` 9 tests). Blocked on: the 30 questions in `eval/chat_eval.jsonl` (team writes them, not the model) (the live key now works, DEC-81) |
+| C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | BLOCKED | `eval/chat_eval.py` reports groundedness at least 90% | Runner done (`make eval-chat`, DEC-80; `tests/test_chat_eval.py` 12 tests); exits 1 below the 90% target, 2 for a bad file. Smoke: `eval/chat_eval_smoke.jsonl`, 8 questions written by the coding model and labelled `smoke: true` (`make eval-chat-smoke`; the real set may not contain smoke lines). Smoke run 2026-11-17 with Gemini: grounded 7/8 (88%, below target; the miss was a provider outage, 503/429 on both models, not a guard failure), refusals 8/8, intent 8/8. This is not the C-08 result. Blocked on: the 30 questions in `eval/chat_eval.jsonl` (team writes them, not the model) (the live key now works, DEC-81) |
 
 ## F: Frontend
 
@@ -1030,6 +1030,14 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: C-08 smoke set and exit code
+
+- `eval/chat_eval.py` now exits 1 below the 90% groundedness target (2 for a bad question file) and takes `--smoke`.
+- `eval/chat_eval_smoke.jsonl`: 8 smoke questions written by the coding model, each marked `smoke: true` and
+  "SMOKE ONLY". They check the runner, not the chatbot; the 30 real questions are still the team's (DEC-80).
+- Smoke run with Gemini: grounded 88% (7/8, one provider outage), refusals 100%, intent 100%. Below target, reported
+  as is. The live provider returned 503 and 429 on both models during the run.
 
 ## 2026-11-17: C-02 scheme KB loader and index, C-03 scheme matcher
 
