@@ -113,6 +113,44 @@ class HttpProvider(LLMClient):
         raise LLMUnavailable("retries_exhausted")          # not reached
 
 
+class FallbackClient(LLMClient):
+    """DEC-81: the primary model first; only when it is *unavailable* (retries used up on 429/5xx, timeout or
+    network) one try on the fallback model. A refusal (4xx such as a bad key) is not retried on the fallback."""
+
+    def __init__(self, primary: LLMClient, fallback: LLMClient):
+        self.primary, self.fallback = primary, fallback
+        self.name = getattr(primary, "name", "base")
+        self.model = getattr(primary, "model", "")
+
+    def _switch(self, e: LLMUnavailable) -> None:
+        log.warning("llm fallback provider=%s from=%s to=%s status=%s", self.name, self.model,
+                    getattr(self.fallback, "model", ""), e.status)
+
+    def generate(self, system: str, messages: list[Message], max_tokens: int = DEFAULT_MAX_TOKENS,
+                 temperature: float = DEFAULT_TEMPERATURE) -> str:
+        try:
+            return self.primary.generate(system, messages, max_tokens, temperature)
+        except LLMUnavailable as e:
+            self._switch(e)
+            return self.fallback.generate(system, messages, max_tokens, temperature)
+
+    def stream(self, system: str, messages: list[Message], max_tokens: int = DEFAULT_MAX_TOKENS,
+               temperature: float = DEFAULT_TEMPERATURE) -> Iterator[str]:
+        try:
+            chunks = self.primary.stream(system, messages, max_tokens, temperature)
+            first = next(chunks, None)
+        except LLMUnavailable as e:
+            self._switch(e)
+            yield from self.fallback.stream(system, messages, max_tokens, temperature)
+            return
+        if first is not None:
+            yield first
+            yield from chunks
+
+
+PRIMARY_RETRIES_WITH_FALLBACK = 1          # DEC-81: do not make the owner wait through all retries twice
+
+
 def get_client(settings: Settings | None = None, **kw) -> LLMClient:
     """The provider named by `LLM_PROVIDER` (stub by default, so nothing needs a key)."""
     s = settings or get_settings()
@@ -121,8 +159,15 @@ def get_client(settings: Settings | None = None, **kw) -> LLMClient:
         return StubClient()
     retry = kw.pop("retry", None) or RetryPolicy(max_retries=s.llm_max_retries)
     if s.llm_provider == "gemini":
-        from app.llm.gemini import DEFAULT_MODEL, GeminiClient
-        return GeminiClient(s.llm_api_key, s.llm_model or DEFAULT_MODEL, timeout_s=s.llm_timeout_s, retry=retry, **kw)
+        from app.llm.gemini import DEFAULT_MODEL, FALLBACK_MODEL, GeminiClient
+        model = s.llm_model or DEFAULT_MODEL
+        fb_model = "" if s.llm_fallback_model == "off" else (s.llm_fallback_model or FALLBACK_MODEL)
+        if not fb_model or fb_model == model:
+            return GeminiClient(s.llm_api_key, model, timeout_s=s.llm_timeout_s, retry=retry, **kw)
+        primary_retry = RetryPolicy(max_retries=min(retry.max_retries, PRIMARY_RETRIES_WITH_FALLBACK),
+                                    base_delay_s=retry.base_delay_s, sleep=retry.sleep, rng=retry.rng)
+        return FallbackClient(GeminiClient(s.llm_api_key, model, timeout_s=s.llm_timeout_s, retry=primary_retry, **kw),
+                              GeminiClient(s.llm_api_key, fb_model, timeout_s=s.llm_timeout_s, retry=retry, **kw))
     if s.llm_provider == "claude":
         from app.llm.claude import DEFAULT_MODEL, ClaudeClient
         return ClaudeClient(s.llm_api_key, s.llm_model or DEFAULT_MODEL, timeout_s=s.llm_timeout_s, retry=retry, **kw)

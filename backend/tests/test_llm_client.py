@@ -41,14 +41,60 @@ def test_provider_is_chosen_by_env_var(monkeypatch):
     assert isinstance(llm.get_client(settings(llm_provider="stub")), StubClient)
     g = llm.get_client(settings(llm_provider="gemini", llm_api_key=KEY))
     c = llm.get_client(settings(llm_provider="claude", llm_api_key=KEY, llm_model="claude-x"))
-    assert isinstance(g, GeminiClient) and g.model == "gemini-2.5-flash"
+    assert isinstance(g, llm.FallbackClient) and g.model == "gemini-3.8-flash"            # DEC-81
+    assert isinstance(g.primary, GeminiClient) and g.fallback.model == "gemini-3.5-flash-lite"
+    assert g.primary.retry.max_retries == 1 and g.fallback.retry.max_retries == 3
+    off = llm.get_client(settings(llm_provider="gemini", llm_api_key=KEY, llm_fallback_model="off"))
+    assert isinstance(off, GeminiClient) and off.model == "gemini-3.8-flash"
+    same = llm.get_client(settings(llm_provider="gemini", llm_api_key=KEY, llm_model="gemini-3.5-flash-lite"))
+    assert isinstance(same, GeminiClient)                                                   # no fallback to itself
     assert isinstance(c, ClaudeClient) and c.model == "claude-x"
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     with pytest.raises(llm.LLMError, match="missing_api_key"):
         llm.get_client(settings(llm_provider="gemini"))
     monkeypatch.setenv("LLM_PROVIDER", "gemini")
     monkeypatch.setenv("LLM_API_KEY", KEY)
-    assert isinstance(llm.get_client(Settings(_env_file=None)), GeminiClient)
+    assert isinstance(llm.get_client(Settings(_env_file=None)), llm.FallbackClient)
+
+
+def test_thinking_config_per_model_family():
+    """Checked live 2026-11-17 (gemini.py docstring): Gemini 3 rejects thinkingBudget 0 and 3.8 rejects 'minimal'."""
+    from app.llm.gemini import THINKING_MARGIN, generation_config
+    assert generation_config("gemini-2.5-flash", 50, 0.2)["thinkingConfig"] == {"thinkingBudget": 0}
+    g3 = generation_config("gemini-3.8-flash", 50, 0.2)
+    assert g3["thinkingConfig"] == {"thinkingLevel": "low"} and g3["maxOutputTokens"] == 50 + THINKING_MARGIN
+    assert generation_config("gemini-3.5-flash-lite", 50, 0.2) == {"maxOutputTokens": 50, "temperature": 0.2}
+
+
+def fallback_pair(primary_status: int, calls: list):
+    def handler(req):
+        calls.append(req.url.path.rsplit("/", 1)[-1])
+        if "primary" in str(req.url):
+            return httpx.Response(primary_status, json={"error": {"message": "x"}})
+        if "alt=sse" in str(req.url):
+            return httpx.Response(200, text="data: " + json.dumps(gemini_ok("from fallback")))
+        return httpx.Response(200, json=gemini_ok("from fallback"))
+    t = httpx.MockTransport(handler)
+    return llm.FallbackClient(GeminiClient(KEY, "primary", retry=no_sleep_policy([]), transport=t),
+                              GeminiClient(KEY, "lite", retry=no_sleep_policy([]), transport=t))
+
+
+def test_unavailable_primary_falls_back_to_lite_model_once(caplog):
+    caplog.set_level(logging.DEBUG)
+    calls = []
+    assert fallback_pair(503, calls).generate(SYSTEM, MSGS) == "from fallback"
+    assert calls[-1] == "lite:generateContent" and calls.count("lite:generateContent") == 1
+    assert "llm fallback provider=gemini from=primary to=lite" in caplog.text and KEY not in caplog.text
+    calls.clear()
+    assert "".join(fallback_pair(503, calls).stream(SYSTEM, MSGS)) == "from fallback"
+    assert calls[-1] == "lite:streamGenerateContent"
+
+
+def test_refused_primary_does_not_use_the_fallback():
+    calls = []
+    fb = fallback_pair(400, calls)
+    assert llm.generate_or_fallback(fb, SYSTEM, MSGS, fallback=lambda: "T") == ("T", "refused")
+    assert calls == ["primary:generateContent"]
 
 
 def test_gemini_request_shape_and_key_in_header_only():

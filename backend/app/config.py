@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     llm_provider: Literal["gemini", "claude", "stub"] = "stub"
     llm_api_key: str = ""                            # never logged (DEC-75)
     llm_model: str = ""                              # empty = the provider's default model
+    llm_fallback_model: str = ""                     # empty = provider default fallback (DEC-81); "off" = none
     llm_timeout_s: float = 20.0
     llm_max_retries: int = 3
     embed_model: str = "intfloat/multilingual-e5-small"

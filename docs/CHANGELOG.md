@@ -2,6 +2,19 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-07 live check, Gemini model fallback (DEC-81)
+
+- `make chat-live` with the project key: the old default `gemini-2.5-flash` answers **404 "no longer available to
+  new users"**, so every LLM answer had fallen back to the template (safely, numbers from code).
+- New default `gemini-3.8-flash`. When it is unavailable (503 or timeout), one try on `gemini-3.5-flash-lite`,
+  then the template (`FallbackClient` in `app/llm/client.py`). A refusal (4xx) does not use the fallback.
+  New setting `LLM_FALLBACK_MODEL` (`off` = none). With a fallback the primary gets 1 retry instead of 3.
+- Gemini 3 thinking setting: `thinkingLevel: low` (the old `thinkingBudget: 0` is rejected); lite models get none.
+- Result: all 6 LLM answers in Hinglish, Hindi and English passed the guard, all via the lite fallback, because
+  3.8-flash answered 503 "high demand" all day.
+- For the audit: the LLM sometimes writes paise (₹63,230.66) where the template rounds. When the primary times
+  out, the owner can wait about 40 s before the fallback runs.
+
 ## 2026-11-17: C-08 evaluation runner
 
 - **Checkpoint:** C-08 is BLOCKED: the runner is done, but the acceptance cannot run yet.

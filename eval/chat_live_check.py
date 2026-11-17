@@ -40,8 +40,9 @@ def main() -> int:
     if s.llm_provider == "stub":
         print("LLM_PROVIDER is 'stub' (or not set): nothing live to check. Set LLM_PROVIDER and LLM_API_KEY in .env.")
         return 2
-    print(f"provider={s.llm_provider} model={s.llm_model or '(provider default)'} key_set={bool(s.llm_api_key)}")
     client = llm.get_client(s)
+    fb = getattr(getattr(client, "fallback", None), "model", None) or "-"
+    print(f"provider={s.llm_provider} model={getattr(client, 'model', '?')} fallback={fb} key_set={bool(s.llm_api_key)}")
     with tempfile.TemporaryDirectory() as tmp:
         engine = make_engine(f"sqlite:///{(Path(tmp) / 'live.db').as_posix()}")
         Base.metadata.create_all(engine)
