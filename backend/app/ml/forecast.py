@@ -109,8 +109,8 @@ def investment_split(budget: float, rent: float, fixed_costs: float, rule: Inves
            "budget_too_low": left < 0, "shortfall": round(max(-left, 0)), "stock": None, "fixtures": None,
            "is_assumption": True}
     if left >= 0:
-        out["stock"] = round(left * rule.remainder_split["stock"])
-        out["fixtures"] = round(left) - out["stock"]
+        stock = round(left * rule.remainder_split["stock"])
+        out["stock"], out["fixtures"] = stock, round(left) - stock
     return out
 
 

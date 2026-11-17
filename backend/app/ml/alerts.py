@@ -63,7 +63,7 @@ def sales_dip(sales_by_day: dict[date, float], today: date, rules: AlertRuleSet)
     days = [today - timedelta(days=k) for k in range(n_s + n_b, 0, -1)]            # oldest first, ends yesterday
     x = np.array([sales_by_day.get(d, np.nan) for d in days], dtype=float)
     st = dip_stats(x[n_b:], x[:n_b])
-    if not is_dip(st, rule):
+    if st is None or not is_dip(st, rule):
         return None
     z = st["z"] if np.isfinite(st["z"]) else None                                 # None: the base had no spread at all
     return _alert("sales_dip", rule, {

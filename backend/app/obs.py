@@ -49,14 +49,17 @@ class JsonFormatter(logging.Formatter):
         return redact(json.dumps(out, default=str, ensure_ascii=False))
 
 
+class _SarthiHandler(logging.StreamHandler):
+    """Marks the handler setup_logging added, so a second call adds none."""
+
+
 def setup_logging(level: int = logging.INFO) -> None:
     """Idempotent: one JSON handler on the root logger."""
     root = logging.getLogger()
-    if any(getattr(h, "_sarthi", False) for h in root.handlers):
+    if any(isinstance(h, _SarthiHandler) for h in root.handlers):
         return
-    h = logging.StreamHandler(sys.stdout)
+    h = _SarthiHandler(sys.stdout)
     h.setFormatter(JsonFormatter())
-    h._sarthi = True
     root.addHandler(h)
     root.setLevel(level)
 

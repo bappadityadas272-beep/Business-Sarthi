@@ -58,8 +58,8 @@ def refresh(db: Session, shop: Shop, today: date) -> dict:
     """Bring the stored alerts in step with today's rules. Returns counts of what happened."""
     found = {dedupe_key(a): a for a in found_today(db, shop, today)}
     latest: dict[str, Alert] = {}
-    for row in db.scalars(select(Alert).where(Alert.shop_id == shop.id).order_by(Alert.id)):
-        latest[row.dedupe_key] = row                                    # the newest row of each key wins
+    for stored in db.scalars(select(Alert).where(Alert.shop_id == shop.id).order_by(Alert.id)):
+        latest[stored.dedupe_key] = stored                                    # the newest row of each key wins
     raised = refreshed = muted = cleared = 0
     for key, a in found.items():
         row = latest.get(key)

@@ -1,6 +1,9 @@
 """Notifications for the logged-in owner: list with unread count, mark read (B-08)."""
+from typing import cast
+
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 
 from app.api.deps import CurrentUser, Db
 from app.models import Notification
@@ -26,8 +29,8 @@ def list_notifications(user: CurrentUser, db: Db, unread_only: bool = False, lim
 
 @router.post("/read-all", response_model=ReadAllOut)
 def read_all(user: CurrentUser, db: Db) -> dict:
-    done = db.execute(update(Notification).where(Notification.user_id == user.id, Notification.read.is_(False))
-                      .values(read=True)).rowcount
+    done = cast(CursorResult, db.execute(update(Notification).where(Notification.user_id == user.id, Notification.read.is_(False))
+                      .values(read=True))).rowcount
     db.commit()
     return {"marked_read": done}
 

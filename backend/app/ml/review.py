@@ -74,8 +74,9 @@ def indicators(*, period_end: date, window_days: int, min_block_logged_days: int
 
     profit_day = _profit_per_day(n_log, n_exp, s, p, e)
     profit_month = None if profit_day is None else profit_day * BLOCK_DAYS
-    has_loan = monthly_emi is not None and monthly_emi > 0
-    dscr = profit_month / monthly_emi if has_loan and profit_month is not None else None
+    emi = monthly_emi if monthly_emi is not None and monthly_emi > 0 else None      # None: no loan
+    has_loan = emi is not None
+    dscr = profit_month / emi if emi is not None and profit_month is not None else None
 
     blocks = []
     for k in range(window_days // BLOCK_DAYS, 0, -1):                              # oldest first
@@ -89,9 +90,9 @@ def indicators(*, period_end: date, window_days: int, min_block_logged_days: int
             "start": b_first.isoformat() if bn_exp else None, "end": b_last.isoformat() if bn_exp else None,
             "days_expected": bn_exp, "days_logged": bn, "avg_daily_sales": _r(bs / bn, 2) if usable else None,
             "operating_profit": _r(b_profit * BLOCK_DAYS, 2) if b_profit is not None else None,
-            "dscr": _r(b_profit * BLOCK_DAYS / monthly_emi) if has_loan and b_profit is not None else None})
+            "dscr": _r(b_profit * BLOCK_DAYS / emi) if emi is not None and b_profit is not None else None})
 
-    net_day = None if profit_day is None else profit_day - (monthly_emi / BLOCK_DAYS if has_loan else 0.0)
+    net_day = None if profit_day is None else profit_day - (emi / BLOCK_DAYS if emi is not None else 0.0)
     runway = None
     if cash is not None and net_day is not None and net_day < 0:
         runway = max(cash, 0.0) / -net_day
@@ -109,7 +110,7 @@ def indicators(*, period_end: date, window_days: int, min_block_logged_days: int
         "dead_stock_value": _r(dead_stock_value, 2), "data_completeness": _r(n_log / n_exp) if n_exp else 0.0,
         # working figures (not used by the decision table directly, except dscr_by_month)
         "dscr_by_month": [b["dscr"] for b in blocks], "blocks": blocks, "has_loan": has_loan,
-        "monthly_emi": _r(monthly_emi, 2) if has_loan else None, "cash": _r(cash, 2),
+        "monthly_emi": _r(emi, 2) if emi is not None else None, "cash": _r(cash, 2),
         "operating_profit_per_month": _r(profit_month, 2), "net_cash_flow_per_day": _r(net_day, 2),
         "days_expected": n_exp, "days_logged": n_log, "sales": _r(s, 2), "purchases": _r(p, 2), "expenses": _r(e, 2),
         "period_start": first.isoformat() if n_exp else start.isoformat(), "period_end": period_end.isoformat()}

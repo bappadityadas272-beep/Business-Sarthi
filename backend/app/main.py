@@ -2,6 +2,7 @@
 error shape, CORS for the configured origins only, a body size limit, rate limits, dev routes only in DEV_MODE."""
 import logging
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,7 +57,17 @@ async def lifespan(_: FastAPI):
     scheduler.stop()
 
 
-app = FastAPI(
+class SarthiAPI(FastAPI):
+    def openapi(self) -> dict[str, Any]:
+        """With DEV_MODE off the dev routes are not in the docs either (DEC-91)."""
+        self.openapi_schema = None
+        schema = super().openapi()
+        if not get_settings().dev_mode:
+            schema = {**schema, "paths": {p: v for p, v in schema["paths"].items() if not p.startswith("/api/dev")}}
+        return schema
+
+
+app = SarthiAPI(
     lifespan=lifespan,
     title="Business Sarthi API",
     version="0.1.0",
@@ -73,16 +84,3 @@ app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origin_list
                    allow_methods=["GET", "POST", "PATCH", "DELETE"], allow_headers=["Authorization", "Content-Type"])
 app.add_middleware(RequestLog)                       # outermost: logs every answer, including 404, 413 and 429
 
-_full_openapi = app.openapi
-
-
-def openapi() -> dict:
-    """With DEV_MODE off the dev routes are not in the docs either (DEC-91)."""
-    app.openapi_schema = None
-    schema = _full_openapi()
-    if not get_settings().dev_mode:
-        schema = {**schema, "paths": {p: v for p, v in schema["paths"].items() if not p.startswith("/api/dev")}}
-    return schema
-
-
-app.openapi = openapi

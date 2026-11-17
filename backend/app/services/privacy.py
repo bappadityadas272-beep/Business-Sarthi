@@ -42,7 +42,7 @@ def owned_counts(db: Session, user_id: int) -> dict[str, int]:
                                    .where(Notification.user_id == user_id)) or 0,
          "shop": len(shop_ids)}
     for name, model in PER_SHOP.items():
-        n[name] = db.scalar(select(func.count()).select_from(model).where(model.shop_id.in_(shop_ids))) or 0
+        n[name] = db.scalar(select(func.count()).select_from(model).where(model.__table__.c.shop_id.in_(shop_ids))) or 0
     n["stock_move"] = db.scalar(select(func.count()).select_from(StockMove).join(StockItem)
                                 .where(StockItem.shop_id.in_(shop_ids))) or 0
     return n

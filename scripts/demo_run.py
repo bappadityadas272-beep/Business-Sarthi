@@ -10,7 +10,9 @@ Exit code: 1 if any step FAILED; with --strict also 1 if any step is MISSED; els
 Inputs used here come from the demo script itself (budget 5 lakh, rent 15,000) and from the DEMO-001 entry of
 data/synthetic/config.yaml (pin, size 200 sq ft, city tier 2). Everything the API returns for the demo shops is
 SYNTHETIC. The run needs DEV_MODE=1 (mock OTP echo and advance-time) and leaves the clock moved 2 days on the first
-run; the demo-run owner deletes its own data at the end (B-11).
+run; the demo-run owner deletes its own data at the end (B-11). Each phone logs in once per run and its token is
+reused, so a run stays inside the OTP rate limit (3 requests per phone per 10 minutes, DEC-90): at most 3 runs per
+10 minutes against the same API, or restart it.
 """
 import argparse
 import json
@@ -42,6 +44,7 @@ class Api:
     def __init__(self, url: str):
         self.http = httpx.Client(base_url=url.rstrip("/") + "/api", timeout=120)
         self.token: str | None = None
+        self.tokens: dict[str, str] = {}
 
     def call(self, method: str, path: str, ok=(200,), **kw) -> httpx.Response:
         headers = {"authorization": f"Bearer {self.token}"} if self.token else {}
@@ -51,12 +54,20 @@ class Api:
         return r
 
     def login(self, phone: str) -> dict:
+        """One OTP per phone per run; later calls switch to the saved token."""
+        if phone in self.tokens:
+            self.token = self.tokens[phone]
+            return {"is_new_user": False}
         self.token = None
-        req = self.call("POST", "/auth/otp/request", json={"phone": phone}).json()
+        r = self.call("POST", "/auth/otp/request", ok=(200, 429), json={"phone": phone})
+        if r.status_code == 429:
+            raise Step("FAIL", f"OTP rate limit (DEC-90): retry in {r.json()['error']['details'].get('retry_after')} s "
+                               "or restart the API")
+        req = r.json()
         need(req.get("is_mock") is True, "OTP request is not labelled mock")
         need(bool(req.get("dev_otp")), "no dev_otp echo: the API must run with DEV_MODE=1 for the demo")
         tok = self.call("POST", "/auth/otp/verify", json={"phone": phone, "otp": req["dev_otp"]}).json()
-        self.token = tok["access_token"]
+        self.token = self.tokens[phone] = tok["access_token"]
         return tok
 
     def own_shop(self) -> dict:
@@ -85,15 +96,19 @@ class Api:
 
 
 def wait_ready(api: Api, seconds: int) -> None:
-    end = time.time() + seconds
+    """Wait for /api/ready (DEC-90): database migrated, forecast model present and not stale, LLM configured."""
+    end, last = time.time() + seconds, "no answer"
     while True:
         try:
-            if api.http.get("/health").status_code == 200:
+            r = api.http.get("/ready")
+            if r.status_code == 200:
                 return
-        except httpx.HTTPError:
+            checks = r.json().get("checks", {})
+            last = ", ".join(f"{k}: {c.get('reason')} (fix: {c.get('fix')})" for k, c in checks.items() if not c["ok"])
+        except (httpx.HTTPError, ValueError):
             pass
         if time.time() > end:
-            raise SystemExit(f"API not reachable at {api.http.base_url} after {seconds} s")
+            raise SystemExit(f"API at {api.http.base_url} not ready after {seconds} s: {last}")
         time.sleep(3)
 
 
@@ -116,11 +131,7 @@ def step2(api: Api, ctx: dict) -> str:
 
 def step3(api: Api, ctx: dict) -> str:
     sid = ctx["idea_id"]
-    r = api.http.get(f"/shops/{sid}/location-score", headers={"authorization": f"Bearer {api.token}"})
-    if r.status_code == 404 and "Not Found" in r.text:
-        raise Step("FAIL", "GET /shops/{id}/location-score is not built yet (M-02)")
-    need(r.status_code == 200, f"location-score -> HTTP {r.status_code}")
-    loc = r.json()
+    loc = api.call("GET", f"/shops/{sid}/location-score").json()
     need("score" in loc and loc.get("starter_mix", {}).get("lines"), "location score or starter mix missing")
     need(loc["weights_are_assumptions"] is True, "location weights not labelled as assumptions")
     fc = api.call("POST", f"/shops/{sid}/forecast", json={}).json()
@@ -207,14 +218,20 @@ def step7(api: Api, ctx: dict) -> str:
 def step8(api: Api, ctx: dict) -> str:
     api.login(RAMESH)
     sid = api.own_shop()["id"]
-    r = api.http.post(f"/shops/{sid}/simulate", json={}, headers={"authorization": f"Bearer {api.token}"})
-    if r.status_code == 404 and "Not Found" in r.text:
-        raise Step("FAIL", "POST /shops/{id}/simulate is not built yet (M-10)")
-    need(r.status_code == 200, f"simulate -> HTTP {r.status_code} {r.text[:200]}")
-    sim = r.json()
-    pb = sim.get("payback") or {}
-    need({"fastest_months", "typical_months", "slowest_months"} <= set(pb), "simulator gives no payback range")
-    return f"payback {pb['fastest_months']}/{pb['typical_months']}/{pb['slowest_months']} months (fast/typical/slow)"
+    sim = api.call("POST", f"/shops/{sid}/simulate", json={}).json()          # M-10, DEC-88: a range per option
+    need(sim["is_estimate"] and sim["assumption"], "simulator output not labelled as an estimate on assumptions")
+    opts = sim["options"]
+    need(len(opts) >= 1, "simulator returned no options")
+    out = []
+    for o in opts:
+        pb = o["payback_months"]
+        need({"p10", "p50", "p90"} <= set(pb), f"{o['option']}: no payback range")
+        need(0 <= o["p_payback_under_target"] <= 1, f"{o['option']}: probability outside 0..1")
+        def fmt(v):
+            return "none" if v is None else f"{v:g}"
+        out.append(f"{o['option']} {fmt(pb['p10'])}/{fmt(pb['p50'])}/{fmt(pb['p90'])} months, "
+                   f"P(<{o['payback_target_months']} m) {o['p_payback_under_target']:.0%}")
+    return f"payback range (P10/P50/P90) per option: {'; '.join(out)}"
 
 
 def cleanup(api: Api) -> None:
@@ -247,12 +264,13 @@ def default_url() -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Demo steps 1 to 8 over HTTP")
     ap.add_argument("--url", default=None)
-    ap.add_argument("--wait", type=int, default=60, help="seconds to wait for the API to answer /api/health")
+    ap.add_argument("--wait", type=int, default=60, help="seconds to wait for /api/ready to answer 200")
     ap.add_argument("--strict", action="store_true", help="MISSED steps also fail the run")
     args = ap.parse_args()
     api = Api(args.url or default_url())
     wait_ready(api, args.wait)
-    print(f"Demo run against {api.http.base_url} (SYNTHETIC demo shops)")
+    provider = api.http.get("/health").json().get("llm_provider")
+    print(f"Demo run against {api.http.base_url} (SYNTHETIC demo shops, LLM provider: {provider})")
     ctx, results = {}, []
     for name, fn in STEPS:
         try:

@@ -4,6 +4,7 @@ by the stub provider, and as the guard's fallback (C-06). Every number comes fro
 here beyond rounding for display.
 """
 from datetime import date
+from typing import Any
 
 HI_MONTHS = ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर",
              "दिसंबर"]
@@ -14,7 +15,8 @@ def indian_digits(n: int) -> str:
     """12345678 -> 1,23,45,678 (Indian grouping)."""
     s = str(abs(n))
     if len(s) > 3:
-        head, tail, groups = s[:-3], s[-3:], []
+        head, tail = s[:-3], s[-3:]
+        groups: list[str] = []
         while len(head) > 2:
             groups.insert(0, head[-2:])
             head = head[:-2]
@@ -221,7 +223,8 @@ def _alerts(o: dict, lang: str) -> list[str]:
     facts = {(f.get("alert_id"), f["key"].split(".")[-1]): f["value"] for f in o["facts"]}
     parts = []
     for a in alerts:
-        p = lambda k, a=a: facts.get((a["id"], k))
+        def p(k: str, a: dict = a) -> Any:      # each branch checks the fact is present before using it
+            return facts.get((a["id"], k))
         kind = a["kind"]
         if kind == "sales_dip" and p("drop_percent") is not None:
             text = t(lang, "alert.sales_dip", drop=num(p("drop_percent")))

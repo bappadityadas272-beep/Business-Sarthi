@@ -54,6 +54,9 @@ MISSED. The demo needs `DEV_MODE=1` (the default), because it uses the mock-OTP 
 | Shell in the container | `docker compose exec backend sh` |
 | Tests | `docker compose run --rm backend make test` |
 | Lint (ruff) | `docker compose run --rm backend make lint` |
+| Type check (mypy, DEC-93) | `docker compose run --rm backend make typecheck` |
+| Tests with coverage (fails below 70% on services and ml) | `docker compose run --rm backend make cov` |
+| API end-to-end demo on a fresh throw-away database (what CI runs) | `docker compose run --rm -e LLM_PROVIDER=stub backend make demo-e2e` |
 | All evaluations (rewrites docs/EVAL_REPORT.md) | `docker compose run --rm backend make eval` |
 | Chatbot evaluation (the team's questions) | `docker compose run --rm backend make eval-chat` |
 | Live LLM check (uses the key in `.env`; prints no key) | `docker compose run --rm backend make chat-live` |

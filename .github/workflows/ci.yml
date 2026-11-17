@@ -1,0 +1,45 @@
+# S-05 (DEC-93): lint, type check, tests with the Q-01 coverage gate, and the API end-to-end demo run.
+# Runs in the same Docker image as local development (DEC-20, DEC-82). No secrets: the LLM is the offline
+# stub and there is no .env in CI. Model files are never committed, so the SYNTHETIC data and the forecast
+# model are generated and trained here (a few minutes).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LLM_PROVIDER: stub
+      DEV_MODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the backend image
+        run: docker compose build backend
+
+      - name: Lint (ruff)
+        run: docker compose run --rm -T -e LLM_PROVIDER backend make lint
+
+      - name: Type check (mypy)
+        run: docker compose run --rm -T -e LLM_PROVIDER backend make typecheck
+
+      - name: SYNTHETIC data and forecast model
+        run: docker compose run --rm -T -e LLM_PROVIDER backend make train
+
+      - name: Tests with coverage of services and ml (fails below 70%)
+        run: docker compose run --rm -T -e LLM_PROVIDER -e DEV_MODE backend make cov
+
+      - name: API end-to-end demo run (steps 1 to 8, fresh database, stub LLM)
+        run: docker compose run --rm -T -e LLM_PROVIDER backend make demo-e2e

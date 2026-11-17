@@ -18,6 +18,7 @@ import hashlib
 import json
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import joblib
 import lightgbm as lgb
@@ -33,7 +34,7 @@ MODEL_DIR = BACKEND_DIR / "data" / "models" / "ml2"
 MODEL_FILE = "ml2_p50.joblib"
 ALPHAS = (0.1, 0.5, 0.9)
 SPLIT = {"train": 0.6, "calibration": 0.2, "test": 0.2}       # by shop: 600 / 200 / 200 (DEC-32, DEC-39)
-PARAMS = {                                                   # fixed (DEC-34, DEC-35) except the leaf size
+PARAMS: dict[str, Any] = {                                                   # fixed (DEC-34, DEC-35) except the leaf size
     "objective": "huber", "alpha": 20000.0,                  # Huber delta in INR per month
     "n_estimators": 300, "learning_rate": 0.05, "num_leaves": 15,
     "deterministic": True, "force_row_wise": True, "n_jobs": 1, "verbose": -1,

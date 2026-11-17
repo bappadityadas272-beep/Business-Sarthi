@@ -92,7 +92,7 @@ def extract_numbers(text: str) -> list[Number]:
         if after[:1].lower() == "k" and not after[1:2].isalpha():        # "5k"
             word = "k"
         if word.rstrip(".") in MULTIPLIERS or word in MULTIPLIERS:
-            mult = MULTIPLIERS.get(word, MULTIPLIERS.get(word.rstrip(".")))
+            mult = MULTIPLIERS[word] if word in MULTIPLIERS else MULTIPLIERS[word.rstrip(".")]
             value, step = value * mult, step * mult
             kind = "money" if kind == "money" or mult >= 1e3 else kind
             after = after[after.lower().find(word) + len(word):]

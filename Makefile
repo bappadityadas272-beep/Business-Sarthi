@@ -3,18 +3,29 @@
 #   On a host with make:             make <target>   (hands itself to Docker automatically)
 # Start and stop the API with `docker compose up` / `docker compose down` (docs/RUNBOOK.md).
 SYNTH := data/synthetic/out
-TARGETS := help synth train seed seed-if-missing migrate test lint eval eval-forecast eval-reforecast eval-stock \
-           eval-alerts eval-chat eval-chat-smoke chat-live demo backup restore reset-db kb-check kb-index
+TARGETS := help setup dev typecheck cov synth train seed seed-if-missing migrate test lint eval eval-forecast eval-reforecast eval-stock \
+           eval-alerts eval-chat eval-chat-smoke chat-live demo demo-e2e backup restore reset-db kb-check kb-index
 .PHONY: $(TARGETS)
 
 ifeq ($(wildcard /.dockerenv),)
 # ---- host: run the same target in the container --------------------------------------------------------------
-$(TARGETS):
+$(filter-out setup dev,$(TARGETS)):
 	MSYS_NO_PATHCONV=1 docker compose run --rm backend make $@ $(if $(FILE),FILE=$(FILE))
+
+setup:
+	docker compose build
+	MSYS_NO_PATHCONV=1 docker compose run --rm backend make setup
+
+dev:
+	docker compose up
 else
 # ---- container -----------------------------------------------------------------------------------------------
 help:
-	@echo "make test        backend test suite"
+	@echo "make setup       first-time set-up: build the image (host), migrate, SYNTHETIC data and model if missing, demo seed"
+	@echo "make dev         run the API with reload (host: docker compose up)"
+	@echo "make test        backend test suite (frontend suite: not yet, S-03)"
+	@echo "make typecheck   mypy over backend/app (DEC-93)"
+	@echo "make cov         test suite with coverage of app/services and app/ml; fails below 70% (Q-01, DEC-93)"
 	@echo "make lint        ruff over backend/, data/synthetic/ and eval/"
 	@echo "make eval        every evaluation (forecast, re-forecast, stock, alerts); rewrites docs/EVAL_REPORT.md"
 	@echo "make synth       regenerate SYNTHETIC data (+ demo shops) in $(SYNTH)/"
@@ -25,6 +36,7 @@ help:
 	@echo "make eval-chat-smoke   the runner on eval/chat_eval_smoke.jsonl (a few labelled smoke questions)"
 	@echo "make chat-live   demo step 7 against the LLM provider set in .env (prints no key)"
 	@echo "make demo        scripts/demo_run.py: demo steps 1 to 8 over HTTP against a running API"
+	@echo "make demo-e2e    start an API on a fresh throw-away database and run the demo driver against it (CI)"
 	@echo "make kb-check    validate data/kb/schemes.json (source_url, last_verified, eligibility); fails if missing"
 	@echo "make kb-index    build the scheme embedding index (e5 if installed with EMBED=1, else the fallback)"
 	@echo "make backup      copy backend/data/sarthi.db to backend/data/backups/sarthi-<time>.db"
@@ -75,6 +87,9 @@ chat-live:
 demo:
 	cd backend && python ../scripts/demo_run.py
 
+demo-e2e:
+	sh scripts/demo_e2e.sh
+
 kb-check:
 	cd backend && python -m app.rag.kb
 
@@ -92,8 +107,22 @@ reset-db:
 	rm -f backend/data/sarthi.db
 	$(MAKE) seed
 
+setup:
+	cd backend && alembic upgrade head
+	if [ ! -f backend/data/models/ml2/ml2_p50.joblib ]; then $(MAKE) train; fi
+	cd backend && python -m app.seed --if-missing
+
+dev:
+	sh backend/docker/start.sh
+
 test:
 	cd backend && pytest -q
+
+typecheck:
+	cd backend && mypy
+
+cov:
+	cd backend && pytest -q -p no:cacheprovider --cov --cov-report=term --cov-fail-under=70
 
 lint:
 	cd backend && ruff check . ../data/synthetic ../eval ../scripts

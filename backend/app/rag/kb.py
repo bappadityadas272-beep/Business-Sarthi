@@ -15,9 +15,10 @@ import argparse
 import hashlib
 import json
 import sys
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, ValidationError, field_validator, model_validator
 
@@ -141,7 +142,7 @@ def load(path: Path | None = None) -> KnowledgeBase:
     return kb
 
 
-def _where(raw, err: dict) -> str:
+def _where(raw, err: Mapping[str, Any]) -> str:
     loc = list(err["loc"])
     label = ".".join(str(x) for x in loc)
     if len(loc) >= 2 and loc[0] == "schemes" and isinstance(loc[1], int):

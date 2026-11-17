@@ -55,7 +55,8 @@ def run(db: Session, shop: Shop, today: date) -> Review:
         for m in prior.horizon_months]
     loans = list(db.scalars(select(Loan).where(Loan.shop_id == shop.id)))
     monthly_emi, emis_paid, undated = loan_figures(loans, period_start, period_end)
-    has_stock = db.scalar(select(func.count()).select_from(StockItem).where(StockItem.shop_id == shop.id)) > 0
+    has_stock = (db.scalar(select(func.count()).select_from(StockItem)
+                           .where(StockItem.shop_id == shop.id)) or 0) > 0
     advice = stock_service.advice(db, shop.id, today, rules.stock) if has_stock else None
 
     out = engine.review(

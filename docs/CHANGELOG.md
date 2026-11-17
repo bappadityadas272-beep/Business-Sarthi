@@ -2,6 +2,22 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: S-04 (backend half), S-05 CI, API end-to-end demo run
+
+- `.github/workflows/ci.yml` (DEC-93): on pushes to main and pull requests, in the project's Docker image: ruff,
+  mypy, `make train`, `make cov` (fails below 70% on `app/services` + `app/ml`), `make demo-e2e`. Stub LLM, no
+  secrets. Local run: lint clean, mypy clean (82 files), 444 passed, coverage 97.5%.
+- mypy (basic, `backend/app`) found 60 errors; all fixed in the code (Optional narrowing, annotations, a
+  `SarthiAPI` subclass for the DEV_MODE-aware OpenAPI instead of assigning `app.openapi`, typed exception
+  handlers). No behaviour change; the suite is unchanged.
+- `make demo-e2e` / `scripts/demo_e2e.sh`: API on a fresh throw-away database, then the demo driver. Stub and
+  Gemini both: 7 passed, 0 failed, 1 missed (step 7 scheme citations: no `data/kb/schemes.json` yet, DEC-74).
+- `scripts/demo_run.py`: one OTP per phone per run (it used 5 for Ramesh, over the DEC-90 limit), waits for
+  `/api/ready` and prints its reasons, prints the LLM provider, step 8 checks the per-option payback ranges of
+  M-10 (it was written before M-10 and expected a single range).
+- Makefile: `setup`, `dev`, `typecheck`, `cov`, `demo-e2e` (DEC-92). S-04 stays IN_PROGRESS for the frontend half.
+- New pinned dev tools: mypy 2.4.1, types-PyYAML 6.0.12.20261113, pytest-cov 7.1.0. Rebuild: `docker compose build`.
+
 ## 2026-11-17: B-12 backend hardening
 
 - `GET /api/ready` (database, model present and not stale, LLM configured; 503 with reasons) and `GET /api/about`

@@ -7,6 +7,7 @@ endpoint put next to its code, or the invalid fields of a 422 (location, message
 are never echoed, they may hold a phone). A 500 never shows internals; the request id in the log finds it.
 """
 import logging
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -42,8 +43,11 @@ def envelope(code: str, status: int, details: dict | None = None) -> dict:
     return {"error": {"code": code, "message": msg, "details": details or {}}}
 
 
-async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def _http(_: Request, exc: Exception) -> JSONResponse:
+    if not isinstance(exc, StarletteHTTPException):    # registered for that class only
+        raise exc
     d = exc.detail
+    details: dict[str, Any]
     if isinstance(d, dict) and "code" in d:
         code, details = d["code"], {k: v for k, v in d.items() if k != "code"}
     else:                                                # framework errors ("Not Found", "Method Not Allowed")
@@ -52,7 +56,9 @@ async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:
                         headers=getattr(exc, "headers", None))
 
 
-async def _validation(_: Request, exc: RequestValidationError) -> JSONResponse:
+async def _validation(_: Request, exc: Exception) -> JSONResponse:
+    if not isinstance(exc, RequestValidationError):     # registered for that class only
+        raise exc
     fields = [{"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")} for e in exc.errors()]
     return JSONResponse(envelope("invalid_input", 422, {"fields": fields}), status_code=422)
 

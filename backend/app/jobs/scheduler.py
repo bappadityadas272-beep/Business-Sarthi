@@ -5,6 +5,7 @@ safe and a server that was switched off at night still catches up the same day. 
 `shop_data` consent are skipped (AGENTS rule 5)."""
 import logging
 from datetime import date
+from typing import Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import select
@@ -22,7 +23,7 @@ _scheduler: BackgroundScheduler | None = None
 
 def run_day(db: Session, day: date) -> dict:
     """Alerts and due reviews for every consented shop, as of `day`. One failing shop does not stop the others."""
-    out = {"day": day, "shops": 0, "skipped_no_consent": 0, "alerts_raised": 0, "reviews_created": 0, "errors": 0}
+    out: dict[str, Any] = {"day": day, "shops": 0, "skipped_no_consent": 0, "alerts_raised": 0, "reviews_created": 0, "errors": 0}
     for shop in db.scalars(select(Shop).order_by(Shop.id)).all():
         if consent.active(db, shop.user_id, consent.SHOP_DATA) is None:
             out["skipped_no_consent"] += 1

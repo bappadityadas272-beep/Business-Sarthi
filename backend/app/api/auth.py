@@ -38,7 +38,7 @@ def otp_verify(body: OtpVerify, db: Db) -> Token:
         raise _fail(e) from e
     user = db.scalar(select(User).where(User.phone == phone))
     is_new = user is None
-    if is_new:
+    if user is None:
         user = User(phone=phone)
         db.add(user)
         db.commit()

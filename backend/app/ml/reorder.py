@@ -112,6 +112,8 @@ def advise(items: list[dict], moves: list[dict], today: date, rule: Stock) -> di
     out = []
     for r in rows:
         it, on_hand = r["it"], r["on_hand"]
+        mean: float | None
+        std: float | None
         if it["id"] in own:
             (mean, std), source = own[it["id"]], "own_sales"
         elif by_cat[it["category"]]:
@@ -121,7 +123,7 @@ def advise(items: list[dict], moves: list[dict], today: date, rule: Stock) -> di
         else:
             mean = std = None
             source = "none"
-        rop = reorder_point(mean, std, rule) if mean is not None else None
+        rop = reorder_point(mean, std, rule) if mean is not None and std is not None else None
         qty = reorder_quantity(mean, on_hand, rule) if mean is not None else None
         dead = on_hand > 0 and r["idle_days"] is not None and r["idle_days"] >= rule.dead_no_sale_days
         over = (not dead) and mean is not None and mean > 0 and on_hand > rule.overstock_cover_days * mean
@@ -132,7 +134,7 @@ def advise(items: list[dict], moves: list[dict], today: date, rule: Stock) -> di
             "mean_daily_demand": None if mean is None else round(mean, 3),
             "std_daily_demand": None if std is None else round(std, 3),
             "reorder_point": None if rop is None else round(rop, 3),
-            "reorder_now": bool(rop is not None and not dead and on_hand <= rop and qty > 0),
+            "reorder_now": bool(rop is not None and qty is not None and not dead and on_hand <= rop and qty > 0),
             "reorder_qty": None if qty is None else round(qty, 3),
             "cover_days": round(on_hand / mean, 1) if mean else None,
             "days_since_last_sale": (today - r["last_sale"]).days if r["last_sale"] else None,

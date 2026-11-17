@@ -32,7 +32,7 @@ def pick_margin(value: float | None, days: int, rules) -> dict:
         reason = "few_logged_days"
     elif value is None or not 0 < value < 1:
         reason = "own_margin_out_of_range"     # e.g. buying stock faster than selling it in the window
-    if reason:
+    if reason or value is None:                  # value None always has a reason
         return {"value": assumed, "source": "assumed", "reason": reason, "logged_days": days,
                 "window_days": ex.margin_window_days}
     return {"value": round(value, 4), "source": "own_logs", "reason": None, "logged_days": days,

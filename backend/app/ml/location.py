@@ -13,7 +13,7 @@ TOP_DRIVERS = 3
 
 def contributions(counts: dict[str, int], w: LocationWeights) -> dict[str, float]:
     """Each feature's share of the 0-1 score (competitors negative)."""
-    out = {name: f.weight * min(counts.get(name, 0) / f.cap, 1.0) for name, f in w.features.items()}
+    out: dict[str, float] = {name: f.weight * min(counts.get(name, 0) / f.cap, 1.0) for name, f in w.features.items()}
     extra = max(0, counts.get("competitors", 0) - w.competitors.free_count)
     out["competitors"] = w.competitors.weight * min(extra / w.competitors.cap, 1.0)
     return out
@@ -24,7 +24,7 @@ def score(counts: dict[str, int], w: LocationWeights) -> dict:
     raw = sum(parts.values())
     drivers = [{"feature": k, "count": int(counts.get(k, 0)), "points": round(100 * v, 1),
                 "direction": "up" if v > 0 else "down"} for k, v in parts.items() if v != 0]
-    pos = sorted((d for d in drivers if d["direction"] == "up"), key=lambda d: (-d["points"], d["feature"]))
+    pos = sorted((d for d in drivers if d["direction"] == "up"), key=lambda d: (-float(d["points"]), d["feature"]))
     neg = sorted((d for d in drivers if d["direction"] == "down"), key=lambda d: (d["points"], d["feature"]))
     return {"score": round(100 * min(max(raw, 0.0), 1.0)), "raw": round(raw, 4),
             "positive_drivers": pos[:TOP_DRIVERS], "negative_drivers": neg[:TOP_DRIVERS]}

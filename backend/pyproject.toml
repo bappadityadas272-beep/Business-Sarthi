@@ -35,6 +35,9 @@ embed = [
 dev = [
   "pytest==9.2.0",
   "ruff==0.17.5",
+  "mypy==2.4.1",
+  "types-PyYAML==6.0.12.20261113",
+  "pytest-cov==7.1.0",
   "matplotlib==3.11.2",
 ]
 
@@ -43,6 +46,18 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mypy]
+# DEC-93: basic (not strict) checking of app/; libraries without type information (LightGBM, statsmodels,
+# APScheduler, joblib, sklearn) are treated as untyped instead of failing the check.
+files = ["app"]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.coverage.run]
+# Q-01 (DEC-93): the target is measured on services and ml only
+source = ["app/services", "app/ml"]
 
 [tool.ruff]
 line-length = 110
