@@ -1,0 +1,3 @@
+# Raw public dataset files (docs/PUBLIC_DATA.md). Never commit them: keep only this file.
+*
+!.gitignore
