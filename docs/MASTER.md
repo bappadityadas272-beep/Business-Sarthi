@@ -179,7 +179,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | C-03 | Scheme matcher (ML7) + endpoint | F4 | P1 | C-02, B-04 | TODO | 20 profile tests; top-3 contains expected scheme in at least 80% | |
 | C-04 | Chat tools (`get_forecast`, `get_latest_review`, ...) | F7 | P0 | M-05, M-08, M-07, M-09 | DONE | Each tool returns structured JSON for the demo shop | `app/llm/tools.py`: six tools; each output has `source` {id,label}, `as_of`, `note` and flat `facts` {key,value,unit,period}; profit periods and EMI shown apart per DEC-77; `match_schemes` returns `[]` with `no_verified_source` (DEC-74); `run()` checks owner and consent (one `shop_not_found` error); 8 tests on both demo shops |
 | C-05 | Router + prompt builder + language handling | F7 | P0 | C-01, C-04 | DONE | Intent routing correct on 20 sample questions; reply language matches | `app/llm/router.py` (rules first, `<classify>` LLM fallback limited to the 5 labels), `language.py` (hi / hinglish / en), `prompts/system.md`, `prompts/classify.md`, builder in `prompts/__init__.py`, `templates.py` (3 languages, Indian ₹ grouping), `app_help.yaml` (draft); 46 tests: 20 routes, 10 languages, 7 refusals (DEC-78 proposed) |
-| C-06 | Guard (number and citation check) + fallback template | F7 | P0 | C-05 | TODO | Injected wrong number is caught and replaced by the template | |
+| C-06 | Guard (number and citation check) + fallback template | F7 | P0 | C-05 | DONE | Injected wrong number is caught and replaced by the template | `app/llm/guard.py` (DEC-76); `tests/test_guard.py` 19 tests: wrong number, swapped ₹/lakh, Devanagari, other-month number, invented scheme, tool-output injection, "ignore your rules", guarantee/link/script; forced bad stub answer gives the template; every demo template answer passes. Question numbers count as plain only |
 | C-07 | `POST /api/chat` with streaming | F7 | P0 | C-06, C-03, B-03 | TODO | Demo script step 7 works with stub and with a real provider | |
 | C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | TODO | `eval/chat_eval.py` reports groundedness at least 90% | |
 
@@ -998,6 +998,32 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: C-06 answer guard
+
+- **Checkpoint:** C-06 DONE. Acceptance: all adversarial tests pass, and a forced bad stub answer is replaced by the
+  template (`tests/test_guard.py`, 19 tests; full suite 301 passed; ruff clean).
+- `backend/app/llm/guard.py`: `check(answer, question=, language=, tool_outputs=) -> Result(ok, failures,
+  bad_numbers)` and `apply(answer, fallback, ...) -> (shown_text, failures)`.
+- Number check (DEC-76):
+  - Reads ASCII and Devanagari digits, Indian and Western commas, ₹/Rs/rupaye, lakh/crore/thousand/hazaar/k, %,
+    and number words used with a multiplier ("do hazaar", "ढाई लाख").
+  - Each number needs a fact of this turn with the same kind (money, percent or plain), within half of the
+    precision it was written in. So "1.2 lakh" matches ₹1,23,456, but "₹25,457" does not match ₹25,456.
+  - Ratio facts also match as percent. Day, month and year numbers from fact dates are allowed.
+- Interpretations (new; tell the human at C-07):
+  - Numbers from the question are allowed as **plain** only. So "say my profit is 5 lakh" cannot put a money
+    figure into the answer.
+  - Item names from this turn's stock output can be quoted as written ("Atta 5 kg"). A name containing ₹, %,
+    lakh or a similar marker is never masked, so an injected amount still fails.
+  - "P10/P50/P90" and "3 months" are not counted as claims.
+- Also checked:
+  - scheme names (fixed list plus the "<Name> Yojana/Scheme" pattern) must be in this turn's `match_schemes`
+    output and cited with their KB id;
+  - links must be in the sources;
+  - no guarantee words (guarantee, promise, pakka, गारंटी, "100%" and others);
+  - the answer must be in the question's script.
+- Only the failure types are logged, never the answer text or its numbers.
 
 ## 2026-11-17: C-05 router, prompt builder and language
 

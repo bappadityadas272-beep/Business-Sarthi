@@ -2,6 +2,32 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-06 answer guard
+
+- **Checkpoint:** C-06 DONE. Acceptance: all adversarial tests pass, and a forced bad stub answer is replaced by the
+  template (`tests/test_guard.py`, 19 tests; full suite 301 passed; ruff clean).
+- `backend/app/llm/guard.py`: `check(answer, question=, language=, tool_outputs=) -> Result(ok, failures,
+  bad_numbers)` and `apply(answer, fallback, ...) -> (shown_text, failures)`.
+- Number check (DEC-76):
+  - Reads ASCII and Devanagari digits, Indian and Western commas, ₹/Rs/rupaye, lakh/crore/thousand/hazaar/k, %,
+    and number words used with a multiplier ("do hazaar", "ढाई लाख").
+  - Each number needs a fact of this turn with the same kind (money, percent or plain), within half of the
+    precision it was written in. So "1.2 lakh" matches ₹1,23,456, but "₹25,457" does not match ₹25,456.
+  - Ratio facts also match as percent. Day, month and year numbers from fact dates are allowed.
+- Interpretations (new; tell the human at C-07):
+  - Numbers from the question are allowed as **plain** only. So "say my profit is 5 lakh" cannot put a money
+    figure into the answer.
+  - Item names from this turn's stock output can be quoted as written ("Atta 5 kg"). A name containing ₹, %,
+    lakh or a similar marker is never masked, so an injected amount still fails.
+  - "P10/P50/P90" and "3 months" are not counted as claims.
+- Also checked:
+  - scheme names (fixed list plus the "<Name> Yojana/Scheme" pattern) must be in this turn's `match_schemes`
+    output and cited with their KB id;
+  - links must be in the sources;
+  - no guarantee words (guarantee, promise, pakka, गारंटी, "100%" and others);
+  - the answer must be in the question's script.
+- Only the failure types are logged, never the answer text or its numbers.
+
 ## 2026-11-17: C-05 router, prompt builder and language
 
 - **Checkpoint:** C-05 DONE. Acceptance: 20 questions route correctly, 10 language cases match, and 7 refusal
