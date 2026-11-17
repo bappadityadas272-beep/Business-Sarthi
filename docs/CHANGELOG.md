@@ -2,6 +2,24 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-05 router, prompt builder and language
+
+- **Checkpoint:** C-05 DONE. Acceptance: 20 questions route correctly, 10 language cases match, and 7 refusal
+  cases (medical, legal, guarantee) answer in the user's language and script (`tests/test_chat_router.py`, 46 tests).
+- `backend/app/llm/router.py`: `route(text, client=None)` returns `Route(intent, tools, refusal, period, via)`.
+  Order: refusals, then schemes, then how_to (a "how" word plus an app word), then my_numbers topics (which tools)
+  and period, then smalltalk (6 tokens or fewer). Only when nothing matches does the LLM pick one of the 5 labels;
+  any other answer gives out_of_scope.
+- `language.py`: `detect()` (Devanagari = hi; romanised Hindi words = hinglish; else en), plus `script_of()`
+  for the guard.
+- Prompts are files: `prompts/system.md` (role, language, facts only, say "I don't know", short sentences, no
+  guarantees, no medical/legal/investment advice, no scheme names) and `prompts/classify.md`. `prompts.build()`
+  puts escaped JSON in `<facts>` and the template answer in `<draft>` (DEC-78, proposed).
+- `templates.py`: `render(intent, tools, language, refusal=None)` in en / hinglish / hi. It serves the stub, the
+  no-LLM intents (DEC-77) and the C-06 fallback.
+- `app_help.yaml` holds the how_to answers. It is a **draft written before the frontend**: re-check it against
+  the F-screens.
+
 ## 2026-11-17: C-04 chat tools
 
 - **Checkpoint:** C-04 DONE. Acceptance: every tool returns strict JSON (`allow_nan=False`) with units and a source

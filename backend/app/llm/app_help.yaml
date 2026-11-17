@@ -1,0 +1,35 @@
+# App help facts for how_to questions (C-05, DEC-77). The chatbot answers how_to only from this file.
+# DRAFT: written before the frontend (F-*) exists. Re-check every step against the real screens when F-checkpoints
+# land, and keep the text free of numbers (the guard, C-06, treats any number as a claim).
+version: 1
+status: draft_until_frontend
+topics:
+  log_sales:
+    keywords: [sale, sales, log, entry, daily, bikri, hisab, hisaab, बिक्री, हिसाब, एंट्री]
+    en: "Open the Daily log screen, type today's sales, purchases and expenses, then press Save. You can fix a past day from the same screen."
+    hinglish: "Daily log screen kholiye, aaj ki bikri, kharid aur kharcha likhiye, phir Save dabaiye. Pichhle din ki galti bhi wahin theek kar sakte hain."
+    hi: "दैनिक लॉग स्क्रीन खोलिए, आज की बिक्री, खरीद और खर्च लिखिए, फिर सेव दबाइए। पिछले दिन की गलती भी वहीं ठीक कर सकते हैं।"
+  add_stock:
+    keywords: [stock, item, maal, saman, samaan, स्टॉक, माल, सामान]
+    en: "Open the Stock screen and press Add item. Enter the name, unit, cost price and selling price. Record each purchase or sale of the item there."
+    hinglish: "Stock screen kholiye aur Add item dabaiye. Naam, unit, kharid daam aur bechne ka daam bhariye. Har kharid ya bikri wahin darj kijiye."
+    hi: "स्टॉक स्क्रीन खोलिए और आइटम जोड़ें दबाइए। नाम, इकाई, खरीद दाम और बेचने का दाम भरिए। हर खरीद या बिक्री वहीं दर्ज कीजिए।"
+  alerts:
+    keywords: [alert, alerts, resolve, mute, chetavani, अलर्ट, चेतावनी]
+    en: "Open the Alerts screen. Press Resolve when you have dealt with a problem, or Mute if you do not want reminders about it."
+    hinglish: "Alerts screen kholiye. Samasya sambhal li ho to Resolve dabaiye, ya yaad nahi dilana ho to Mute dabaiye."
+    hi: "अलर्ट स्क्रीन खोलिए। समस्या संभाल ली हो तो रिज़ॉल्व दबाइए, या याद नहीं दिलाना हो तो म्यूट दबाइए।"
+  language:
+    keywords: [language, bhasha, bhaashaa, hindi, english, भाषा]
+    en: "Open Profile and choose your language. The app and the chat will use it from then on."
+    hinglish: "Profile kholiye aur apni bhasha chuniye. App aur chat usi bhasha mein chalenge."
+    hi: "प्रोफ़ाइल खोलिए और अपनी भाषा चुनिए। ऐप और चैट उसी भाषा में चलेंगे।"
+  loan:
+    keywords: [loan, emi, kist, kisht, लोन, किस्त]
+    en: "Open the Loans screen and press Add loan. Enter the amount, the monthly instalment, the due day and the number of instalments."
+    hinglish: "Loans screen kholiye aur Add loan dabaiye. Rakam, mahine ki kist, due din aur kitni kisten hain, ye bhariye."
+    hi: "लोन स्क्रीन खोलिए और लोन जोड़ें दबाइए। रकम, महीने की किस्त, देय दिन और कुल किस्तें भरिए।"
+fallback:
+  en: "I can explain how to log daily sales, add stock, handle alerts, add a loan and change the language. Which one do you need?"
+  hinglish: "Main bata sakta hoon: rozana bikri kaise likhein, stock kaise jodein, alerts kaise sambhalein, loan kaise jodein aur bhasha kaise badlein. Aapko kaunsa chahiye?"
+  hi: "मैं बता सकता हूँ: रोज़ की बिक्री कैसे लिखें, स्टॉक कैसे जोड़ें, अलर्ट कैसे संभालें, लोन कैसे जोड़ें और भाषा कैसे बदलें। आपको कौन-सा चाहिए?"

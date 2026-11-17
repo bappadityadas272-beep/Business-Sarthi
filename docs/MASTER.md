@@ -178,7 +178,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | C-02 | KB loader + embedding index build | F4,F7 | P1 | D-03 | TODO | `python -m app.rag.build_index` writes index; top-1 retrieval correct on 10 test queries (Hindi and English) | |
 | C-03 | Scheme matcher (ML7) + endpoint | F4 | P1 | C-02, B-04 | TODO | 20 profile tests; top-3 contains expected scheme in at least 80% | |
 | C-04 | Chat tools (`get_forecast`, `get_latest_review`, ...) | F7 | P0 | M-05, M-08, M-07, M-09 | DONE | Each tool returns structured JSON for the demo shop | `app/llm/tools.py`: six tools; each output has `source` {id,label}, `as_of`, `note` and flat `facts` {key,value,unit,period}; profit periods and EMI shown apart per DEC-77; `match_schemes` returns `[]` with `no_verified_source` (DEC-74); `run()` checks owner and consent (one `shop_not_found` error); 8 tests on both demo shops |
-| C-05 | Router + prompt builder + language handling | F7 | P0 | C-01, C-04 | TODO | Intent routing correct on 20 sample questions; reply language matches | |
+| C-05 | Router + prompt builder + language handling | F7 | P0 | C-01, C-04 | DONE | Intent routing correct on 20 sample questions; reply language matches | `app/llm/router.py` (rules first, `<classify>` LLM fallback limited to the 5 labels), `language.py` (hi / hinglish / en), `prompts/system.md`, `prompts/classify.md`, builder in `prompts/__init__.py`, `templates.py` (3 languages, Indian ₹ grouping), `app_help.yaml` (draft); 46 tests: 20 routes, 10 languages, 7 refusals (DEC-78 proposed) |
 | C-06 | Guard (number and citation check) + fallback template | F7 | P0 | C-05 | TODO | Injected wrong number is caught and replaced by the template | |
 | C-07 | `POST /api/chat` with streaming | F7 | P0 | C-06, C-03, B-03 | TODO | Demo script step 7 works with stub and with a real provider | |
 | C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | TODO | `eval/chat_eval.py` reports groundedness at least 90% | |
@@ -986,6 +986,7 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-75 | 2026-11-17 | LLM client settings, **approved by the human**: providers call the REST APIs with `httpx` (already pinned; no new SDK); model name from a new env var `LLM_MODEL` (provider default otherwise); up to 3 retries on 429, 5xx, timeout or network error, waiting 1, 2 and 4 s times a random jitter of 0.5 to 1.5 (a `Retry-After` header is honoured up to 10 s); 20 s timeout per call; then the guard's template answer. Identical questions are cached in memory per (shop, app date, normalised question, facts hash), lost on restart; max 400 output tokens, temperature 0.2. Keys come only from the environment and are never logged; prompts are never logged | Gemini free tier has rate limits; keep dependencies small | Official SDKs; cache in the database | ACTIVE |
 | DEC-76 | 2026-11-17 | Guard (C-06) plan, **approved by the human**: every number in the answer (ASCII or Devanagari digits, Indian or Western separators, rupee signs, lakh, crore, thousand/hazaar, k, percent, written words in Hindi, Hinglish and English from a fixed list) is normalised to (value, kind: money, percent or plain) and must match a numeric fact of THIS turn's tool output at the precision it was written in, with the same kind; numbers from the question and dates that appear in the facts are allowed; any scheme name (fixed list of well-known names plus a "<Name> Yojana" pattern) must exist in the KB and be cited with a KB id from this turn's sources; links not in the sources, guarantee words and a reply script other than the question's also fail. Owner-typed strings enter the prompt only as escaped JSON data. On failure the owner sees a template filled from the tool result in their language, and only the failure types are logged | The LLM explains, code decides (DEC-06); a check independent of the LLM also defeats prompt injection | Fixed relative tolerance only; trust the LLM's citations | ACTIVE |
 | DEC-77 | 2026-11-17 | Chat behaviour defaults, **approved by the human**: profit = logged sales - purchases - expenses (DEC-64c) for `this_month` (1st of the month to yesterday by the app clock), `last_month`, `last_30_days` or `last_90_days`; the EMI due in the period is shown next to it, not subtracted. Smalltalk, refusals, out-of-scope and scheme answers without a KB are templates (no LLM call); `how_to` is answered from a short app-help facts file. Each question is answered on its own: earlier turns are stored but not sent to the LLM. Language: Devanagari script = Hindi; Latin script with Hindi words = Hinglish (answered in Latin script); otherwise English | Simplest grounded behaviour; history would bring in numbers the guard cannot tie to this turn's facts | Send the last turns; subtract the EMI from profit | ACTIVE |
+| DEC-78 | 2026-11-17 | Chat prompt and router details (C-05): (a) the LLM gets the tool outputs as escaped JSON in `<facts>` plus a `<draft>`, the template answer built by code from the same facts, and is told to rephrase it for the exact question while keeping its numbers; the guard still checks the reply against the facts. (b) Keyword lists live in `app/llm/router.py` and `language.py`; refusal order is medical, legal, guarantee; "guarantee" also covers market investment advice (share market, mutual fund, crypto, "where should I invest") but not a plain "invest", so "should I invest in a fridge" is a shop question. (c) `app/llm/app_help.yaml` is a draft until the frontend screens exist | A draft keeps a small model's numbers right and cuts guard failures; plain "invest" is common in real shop questions | LLM writes from facts alone; refuse every "invest" | PROPOSED (to confirm with the human at C-07) |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -997,6 +998,24 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: C-05 router, prompt builder and language
+
+- **Checkpoint:** C-05 DONE. Acceptance: 20 questions route correctly, 10 language cases match, and 7 refusal
+  cases (medical, legal, guarantee) answer in the user's language and script (`tests/test_chat_router.py`, 46 tests).
+- `backend/app/llm/router.py`: `route(text, client=None)` returns `Route(intent, tools, refusal, period, via)`.
+  Order: refusals, then schemes, then how_to (a "how" word plus an app word), then my_numbers topics (which tools)
+  and period, then smalltalk (6 tokens or fewer). Only when nothing matches does the LLM pick one of the 5 labels;
+  any other answer gives out_of_scope.
+- `language.py`: `detect()` (Devanagari = hi; romanised Hindi words = hinglish; else en), plus `script_of()`
+  for the guard.
+- Prompts are files: `prompts/system.md` (role, language, facts only, say "I don't know", short sentences, no
+  guarantees, no medical/legal/investment advice, no scheme names) and `prompts/classify.md`. `prompts.build()`
+  puts escaped JSON in `<facts>` and the template answer in `<draft>` (DEC-78, proposed).
+- `templates.py`: `render(intent, tools, language, refusal=None)` in en / hinglish / hi. It serves the stub, the
+  no-LLM intents (DEC-77) and the C-06 fallback.
+- `app_help.yaml` holds the how_to answers. It is a **draft written before the frontend**: re-check it against
+  the F-screens.
 
 ## 2026-11-17: C-04 chat tools
 
