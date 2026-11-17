@@ -2,6 +2,20 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: B-10 SOS summary and B-11 delete-my-data
+
+- **B-10 (DEC-83):** `POST /api/sos` builds, on request, a shareable summary (open alerts, EMI status, last-30-days
+  sales, purchases, expenses and profit) and a checklist chosen by fixed code rules, with `share_text` in Hindi,
+  Hinglish or English. Nothing is stored. No helpline numbers are included because none are verified; if the team
+  wants them, they must supply numbers with sources. The 7-day EMI window and the "fewer than two thirds of days
+  logged" threshold are assumptions.
+- **B-11 (DEC-84):** `DELETE /api/me/data` deletes the account and every row tied to it, consent history included,
+  plus the owner's chat answer-cache entries and any pending OTP. Backups are not touched (RUNBOOK section 4).
+- **Auth fix found while building B-11:** SQLite reuses the highest row id after a delete, so an old token could
+  have opened a new account with the same id. Tokens now carry an account stamp (creation time in microseconds)
+  that must match the user row. Tokens issued before this change have no stamp and are refused: **everyone has to
+  log in again once.**
+
 ## 2026-11-17: M-02 location score and starter mix; guard rule for owner-typed numbers documented
 
 - **M-02 DONE.** `app/ml/location.py` scores a pin for the shop type and suggests a starter product mix.

@@ -30,6 +30,13 @@ class ConsentRecord(BaseModel):
     withdrawn_at: UtcDatetime | None = None
 
 
+class DataDeleted(BaseModel):
+    """B-11 (DEC-84). Rows removed per table; backups are files outside the database and are not touched."""
+    deleted: dict[str, int]
+    backups_touched: bool = False
+    note: str = "Database backups made before this request are not changed; the operator deletes them (RUNBOOK)."
+
+
 class ShopIn(BaseModel):
     """Idea intake. Size and city tier are typed by the owner (DEC-42)."""
     name: str = Field(min_length=1, max_length=80)

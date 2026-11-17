@@ -78,6 +78,12 @@ Backups hold owner data once real owners exist. They are git-ignored (`*.db`) an
 data when an owner asks for deletion (B-11). A restore checks the file with SQLite's `integrity_check` first, then
 applies any newer migrations.
 
+**Delete-my-data (B-11, DEC-84).** `DELETE /api/me/data` removes the account and every row tied to it (shops,
+logs, stock, loans, forecasts, reviews, alerts, notifications, chat, consents and consent history) and answers
+with the row count per table. It does **not** touch files in `backend/data/backups/`: the operator deletes every
+backup made before the request (or restores none of them) by hand. Restoring an old backup brings deleted owners
+back, so do not restore one after a deletion request without removing that owner again.
+
 ## 5. Common errors
 
 | Symptom | Cause and fix |

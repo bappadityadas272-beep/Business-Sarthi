@@ -17,10 +17,11 @@ def current_user(db: Db, cred: Annotated[HTTPAuthorizationCredentials | None, De
     if cred is None:
         raise HTTPException(401, detail={"code": "not_logged_in"}, headers={"WWW-Authenticate": "Bearer"})
     try:
-        user = db.get(User, auth.read_token(cred.credentials))
+        user_id, stamp = auth.read_token(cred.credentials)
     except auth.AuthError as e:
         raise HTTPException(401, detail={"code": e.code}, headers={"WWW-Authenticate": "Bearer"}) from e
-    if user is None:
+    user = db.get(User, user_id)
+    if user is None or stamp != auth.account_stamp(user.created_at):    # deleted, or the id was reused (B-11)
         raise HTTPException(401, detail={"code": "invalid_token"}, headers={"WWW-Authenticate": "Bearer"})
     return user
 

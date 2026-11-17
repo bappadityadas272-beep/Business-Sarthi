@@ -89,19 +89,35 @@ def _secret() -> str:
     return s.jwt_secret
 
 
-def create_token(user_id: int, now: datetime | None = None) -> tuple[str, int]:
-    """(token, seconds until it expires)."""
+def account_stamp(created_at: datetime) -> int:
+    """The account's creation time in microseconds. SQLite can reuse the id of a deleted user (B-11), so a token
+    names the account by id AND this stamp; an old owner's token then cannot open a new account with the same id."""
+    created = created_at if created_at.tzinfo else created_at.replace(tzinfo=UTC)     # SQLite drops the zone
+    return round(created.timestamp() * 1_000_000)
+
+
+def create_token(user_id: int, now: datetime | None = None, created_at: datetime | None = None) -> tuple[str, int]:
+    """(token, seconds until it expires). The API always passes `created_at`; a token without it is refused."""
     now = now or datetime.now(UTC)
     payload = {"sub": str(user_id), "iat": now, "exp": now + TOKEN_TTL}
+    if created_at is not None:
+        payload["acc"] = account_stamp(created_at)
     return jwt.encode(payload, _secret(), algorithm=JWT_ALG), int(TOKEN_TTL.total_seconds())
 
 
-def read_token(token: str) -> int:
+def read_token(token: str) -> tuple[int, int | None]:
+    """(user id, account stamp or None). The caller compares the stamp with the user row."""
     try:
         data = jwt.decode(token, _secret(), algorithms=[JWT_ALG], options={"require": ["sub", "exp"]})
-        return int(data["sub"])
-    except (jwt.PyJWTError, ValueError) as e:
+        acc = data.get("acc")
+        return int(data["sub"]), (int(acc) if acc is not None else None)
+    except (jwt.PyJWTError, ValueError, TypeError) as e:
         raise AuthError("invalid_token") from e
+
+
+def forget_phone(phone: str) -> None:
+    """Delete-my-data (B-11): drop a pending OTP for this phone."""
+    _store.pop(phone, None)
 
 
 def reset_store() -> None:

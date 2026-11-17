@@ -38,5 +38,6 @@ def otp_verify(body: OtpVerify, db: Db) -> Token:
         user = User(phone=phone)
         db.add(user)
         db.commit()
-    token, ttl = auth.create_token(user.id)
+        db.refresh(user)                    # created_at as stored, so the account stamp matches later reads
+    token, ttl = auth.create_token(user.id, created_at=user.created_at)
     return Token(access_token=token, expires_in_seconds=ttl, is_new_user=is_new)

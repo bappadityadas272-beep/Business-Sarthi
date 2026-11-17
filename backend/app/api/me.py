@@ -5,8 +5,8 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, Db
 from app.models import Consent
 from app.schemas.auth import Me
-from app.schemas.profile import ConsentIn, ConsentOut, ConsentRecord, MeUpdate, Purpose
-from app.services import consent
+from app.schemas.profile import ConsentIn, ConsentOut, ConsentRecord, DataDeleted, MeUpdate, Purpose
+from app.services import consent, privacy
 
 router = APIRouter(tags=["profile"])
 
@@ -27,6 +27,13 @@ def update_me(body: MeUpdate, user: CurrentUser, db: Db) -> Me:
 def _out(purpose: str, rec: Consent | None) -> ConsentOut:
     return ConsentOut(purpose=purpose, required=consent.PURPOSES[purpose]["required"], active=rec is not None,
                       given_at=rec.given_at if rec else None)
+
+
+@router.delete("/me/data", response_model=DataDeleted)
+def delete_my_data(user: CurrentUser, db: Db) -> DataDeleted:
+    """B-11 (DEC-84): delete the account and every row tied to it. Works without consent (withdrawing first is
+    allowed). The token stops working; logging in again with the same phone starts a new, empty account."""
+    return DataDeleted(deleted=privacy.delete_user_data(db, user))
 
 
 @router.get("/consents", response_model=list[ConsentOut])

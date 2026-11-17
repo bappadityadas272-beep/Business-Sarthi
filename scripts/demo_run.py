@@ -151,7 +151,11 @@ def step5(api: Api, ctx: dict) -> str:
     need(EXPECTED_ALERTS <= kinds, f"missing alerts: {sorted(EXPECTED_ALERTS - kinds)}")
     dip = next(a for a in alerts if a["kind"] == "sales_dip")
     need(not dip["still_active"] and not dip["resolved"], "sales dip should be no longer active but still open")
-    return f"alerts {sorted(kinds)}; sales dip open and no longer active"
+    sos = api.call("POST", "/sos", json={"shop_id": ctx["ramesh"]}).json()            # B-10
+    keys = [s["key"] for s in sos["steps"]]
+    need(sos["share_text"] and sos["stored"] is False and keys[-2:] == ["share", "official"],
+         f"SOS summary incomplete: steps {keys}")
+    return f"alerts {sorted(kinds)}; sales dip open and no longer active; SOS steps {keys}"
 
 
 def step6(api: Api, ctx: dict) -> str:

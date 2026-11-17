@@ -216,5 +216,11 @@ class AnswerCache:
     def clear(self) -> None:
         self._d.clear()
 
+    def forget_shops(self, shop_ids: list[int]) -> None:
+        """Delete-my-data (B-11): drop cached answers of these shops."""
+        ids = set(shop_ids)
+        for k in [k for k in self._d if k[0] in ids]:
+            del self._d[k]
+
 
 answer_cache = AnswerCache()
