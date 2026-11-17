@@ -122,7 +122,7 @@ def test_endpoint_three_options_assumed_margin(client, consented, with_model):
     one = client.post(f"/api/shops/{shop_id}/simulate", headers=consented, json={"options": ["extend_hours"]}).json()
     assert [o["option"] for o in one["options"]] == ["extend_hours"]
     bad = client.post(f"/api/shops/{shop_id}/simulate", headers=consented, json={"options": ["open_a_mall"]})
-    assert bad.status_code == 422 and bad.json()["detail"]["code"] == "unknown_option"
+    assert bad.status_code == 422 and bad.json()["error"]["code"] == "unknown_option"
 
 
 def test_endpoint_uses_the_shops_own_margin(client, consented, with_model, db_factory):
@@ -141,14 +141,14 @@ def test_endpoint_uses_the_shops_own_margin(client, consented, with_model, db_fa
 def test_endpoint_needs_a_forecast_ahead(client, consented, with_model, db_factory):
     shop_id = make_shop(client, consented, with_forecast=False)
     r = client.post(f"/api/shops/{shop_id}/simulate", headers=consented)
-    assert r.status_code == 409 and r.json()["detail"]["code"] == "forecast_missing"
+    assert r.status_code == 409 and r.json()["error"]["code"] == "forecast_missing"
     with db_factory() as db:
         db.add(Forecast(shop_id=shop_id, kind="setup", made_on=date(2020, 1, 1), drivers=[],
                         horizon_months=[{"k": 0, "start": "2020-01-01", "end": "2020-01-30", "p10": 1, "p50": 2,
                                          "p90": 3}]))
         db.commit()
     r = client.post(f"/api/shops/{shop_id}/simulate", headers=consented)
-    assert r.status_code == 409 and r.json()["detail"]["code"] == "forecast_has_no_month_ahead"
+    assert r.status_code == 409 and r.json()["error"]["code"] == "forecast_has_no_month_ahead"
 
 
 def test_endpoint_access(client, consented, with_model):

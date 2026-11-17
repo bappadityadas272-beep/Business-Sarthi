@@ -3,6 +3,8 @@
 Everything here is code, not the LLM (AGENTS rule 2). Revenue comes from the ML2 model (trained on SYNTHETIC
 shops); margin, wage and the payback extension are labelled assumptions from data/rules/forecast_assumptions.yaml.
 """
+import hashlib
+import json
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -10,8 +12,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from app.config import REPO_ROOT
 from app.ml.features import FEATURES, HORIZON, month_rows
-from app.ml.train import MODEL_DIR, active_band, load, predict_quantiles
+from app.ml.train import MODEL_DIR, MODEL_FILE, MODEL_VERSION, active_band, load, predict_quantiles
 from app.rules import ForecastAssumptions, InvestmentSplit
 
 PATHS = ("p10", "p50", "p90")
@@ -35,6 +38,36 @@ def load_model(model_dir: Path = MODEL_DIR):
         return load(model_dir)
     except OSError as e:
         raise ModelNotReady("ML2 model files not found; run `make train`") from e
+
+
+def load_card(model_dir: Path = MODEL_DIR) -> dict:
+    return json.loads((model_dir / "model_card.json").read_text(encoding="utf-8"))
+
+
+SYNTH_CONFIG = REPO_ROOT / "data" / "synthetic" / "config.yaml"
+
+
+def model_status(model_dir: Path = MODEL_DIR, config_path: Path = SYNTH_CONFIG) -> dict:
+    """Is the ML2 model usable? `ok` False with a `reason` when files are missing, the card is from another model
+    version, the model file does not match the hash in its card, or the SYNTHETIC config changed since training
+    (stale: run `make train`). Not cached: the files are small (the model is about 130 KB), a check takes ms."""
+    d, cfg = Path(model_dir), Path(config_path)
+    out = {"ok": False, "reason": None, "version": None, "is_synthetic": True, "fix": "make train"}
+    try:
+        card = json.loads((d / "model_card.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {**out, "reason": "model_files_missing"}
+    out.update(version=card.get("version"), is_synthetic=bool(card.get("is_synthetic", True)))
+    f = d / MODEL_FILE
+    if not f.exists():
+        return {**out, "reason": "model_files_missing"}
+    if card.get("version") != MODEL_VERSION:
+        return {**out, "reason": "model_version_mismatch"}
+    if hashlib.sha256(f.read_bytes()).hexdigest() != card.get("files_sha256", {}).get(MODEL_FILE):
+        return {**out, "reason": "model_file_changed"}
+    if cfg.exists() and hashlib.sha256(cfg.read_bytes()).hexdigest() != card.get("data", {}).get("config_sha256"):
+        return {**out, "reason": "model_stale_config_changed"}
+    return {**out, "ok": True, "fix": None}
 
 
 def next_month_start(today: date) -> date:

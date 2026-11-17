@@ -126,3 +126,28 @@ def test_demo_present_only_when_every_demo_login_exists(client, db_factory):
         db.add(User(phone=SUNITA, language="en"))
         db.commit()
         assert sd.demo_present(db) is True
+
+
+def test_advance_twice_and_a_restart_never_duplicate_reviews_or_alerts(seeded, client, db_factory):
+    """Hardening: the daily job runs once per due date for both shops, whatever is replayed."""
+    from app.jobs import scheduler
+    from app.models import Notification, Review
+    ramesh = login(client, RAMESH)
+    start = clock.today()
+    first = client.post("/api/dev/advance-time", headers=ramesh, json={"days": 2}).json()
+    assert first["reviews_created"] == 2 and first["errors"] == 0
+
+    def counts():
+        with db_factory() as db:
+            return [db.scalar(select(func.count()).select_from(m)) for m in (Review, Alert, Notification)]
+    after_first = counts()
+    again = client.post("/api/dev/advance-time", headers=ramesh, json={"days": 2}).json()
+    assert again["reviews_created"] == 0 and again["errors"] == 0
+    assert counts()[0] == after_first[0]
+    before_restart = counts()
+    clock.reset()                                       # a restart puts the clock back; the job replays old days
+    with db_factory() as db:                            # fresh session, as after a restart
+        for i in range(1, 5):
+            out = scheduler.run_day(db, start + timedelta(days=i))
+            assert out["reviews_created"] == 0 and out["alerts_raised"] == 0 and out["errors"] == 0 and out["shops"] == 2
+    assert counts() == before_restart

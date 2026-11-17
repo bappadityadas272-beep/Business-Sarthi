@@ -82,7 +82,7 @@ def test_the_old_token_stops_working_even_if_the_id_is_reused(client, db_factory
         db.add(User(id=uid, phone="+919800000044"))
         db.commit()
     r = client.get("/api/me", headers=a)
-    assert r.status_code == 401 and r.json()["detail"]["code"] == "invalid_token"
+    assert r.status_code == 401 and r.json()["error"]["code"] == "invalid_token"
     assert client.get("/api/me", headers=login(client, "+919800000044")).json()["id"] == uid   # its own token works
 
 

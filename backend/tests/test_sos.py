@@ -85,7 +85,7 @@ def test_owner_only_needs_consent_and_login(client, consented, db_factory):
     other = login(client, "+919800000099")
     client.post("/api/consents", headers=other, json={"purpose": "shop_data"})
     r = client.post("/api/sos", headers=other, json={"shop_id": sid})
-    assert r.status_code == 404 and r.json()["detail"]["code"] == "shop_not_found"
+    assert r.status_code == 404 and r.json()["error"]["code"] == "shop_not_found"
     assert client.post("/api/sos", json={"shop_id": sid}).status_code == 401
     client.delete("/api/consents", params={"purpose": "shop_data"}, headers=consented)
     assert client.post("/api/sos", headers=consented, json={"shop_id": sid}).status_code == 403

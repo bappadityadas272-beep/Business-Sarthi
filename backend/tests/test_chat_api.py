@@ -96,14 +96,14 @@ def test_needs_login_consent_and_own_shop(demo, client, db_factory):
     _, other_sid = demo[SUNITA]
     assert client.post("/api/chat", json={"shop_id": sid, "message": "profit?"}).status_code == 401
     r, _ = ask(client, headers, other_sid, "Is mahine ka profit kitna hai?")
-    assert r.status_code == 404 and r.json()["detail"]["code"] == "shop_not_found"
+    assert r.status_code == 404 and r.json()["error"]["code"] == "shop_not_found"
     assert ask(client, headers, 99999, "profit?")[0].status_code == 404
     assert client.post("/api/chat", headers=headers, json={"shop_id": sid, "message": ""}).status_code == 422
     from app.services import consent
     with db_factory() as db:
         consent.withdraw(db, db.get(Shop, sid).user_id, consent.SHOP_DATA)
     r, _ = ask(client, headers, sid, "Is mahine ka profit kitna hai?")
-    assert r.status_code == 403 and r.json()["detail"]["code"] == "consent_required"
+    assert r.status_code == 403 and r.json()["error"]["code"] == "consent_required"
     with db_factory() as db:
         assert db.scalars(select(ChatMessage).where(ChatMessage.shop_id == sid)).all() == []
 

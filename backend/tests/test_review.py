@@ -137,7 +137,7 @@ def _seed(db_factory, shop_id: int, sales: float, p50_per_day: float) -> date:
 
 def test_run_persists_and_latest_returns_it(client, consented, db_factory):
     shop_id = client.post("/api/shops", headers=consented, json=SHOP).json()["id"]
-    assert client.get(f"/api/shops/{shop_id}/reviews/latest", headers=consented).json()["detail"]["code"] == "review_missing"
+    assert client.get(f"/api/shops/{shop_id}/reviews/latest", headers=consented).json()["error"]["code"] == "review_missing"
     end = _seed(db_factory, shop_id, sales=500.0, p50_per_day=1000.0)
 
     r = client.post(f"/api/shops/{shop_id}/reviews/run", headers=consented)

@@ -20,7 +20,10 @@ router = APIRouter(prefix="/shops", tags=["forecast"])
 
 
 def forecast_model():
-    """(model, card). Overridden in tests with a small model."""
+    """(model, card). Overridden in tests with a small model. Missing or stale model files: 503 with the reason."""
+    st = fc.model_status()
+    if not st["ok"]:
+        raise HTTPException(503, detail={"code": "model_not_ready", "reason": st["reason"], "fix": st["fix"]})
     try:
         return fc.load_model()
     except fc.ModelNotReady as e:

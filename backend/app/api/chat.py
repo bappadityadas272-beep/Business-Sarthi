@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app import ratelimit
 from app.api.deps import ConsentedUser, Db, _own_shop
 from app.services import chat as chat_service
 
@@ -35,6 +36,7 @@ def chunks(text: str, n: int = WORDS_PER_CHUNK) -> Iterator[str]:
 def chat(body: ChatIn, user: ConsentedUser, db: Db) -> StreamingResponse:
     """Ask a question about your own shop. Needs login and `shop_data` consent; 404 if the shop is not yours."""
     shop = _own_shop(db, user, body.shop_id)
+    ratelimit.check((ratelimit.CHAT_PER_USER, str(user.id)))       # DEC-90
     turn = chat_service.answer(db, user.id, shop, body.message.strip())
 
     def events() -> Iterator[str]:

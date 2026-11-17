@@ -156,4 +156,4 @@ def test_notifications_read_and_ownership(client, consented, db_factory):
     assert client.get("/api/notifications", headers=consented).json()["unread"] == 0
     assert client.get("/api/notifications", headers=consented, params={"unread_only": True}).json()["items"] == []
     assert client.post("/api/notifications/read-all", headers=consented).json() == {"marked_read": 0}
-    assert client.post(f"/api/shops/{shop_id}/alerts/999/resolve", headers=consented).json()["detail"]["code"] == "alert_missing"
+    assert client.post(f"/api/shops/{shop_id}/alerts/999/resolve", headers=consented).json()["error"]["code"] == "alert_missing"

@@ -2,6 +2,24 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: B-12 backend hardening
+
+- `GET /api/ready` (database, model present and not stale, LLM configured; 503 with reasons) and `GET /api/about`
+  (model card summary, `is_synthetic`, assumption flags of each rule file). DEC-90.
+- Every error is now `{"error": {"code", "message", "details"}}`. **Breaking for clients**: read `error.code`, not
+  `detail.code`; extra keys an endpoint sent next to its code are in `error.details`. 422s list fields without values.
+- JSON logs, one line per request with a request id (`X-Request-ID`); a redactor masks phones (last 2 digits) and
+  replaces keys and bearer tokens on every line. The mock OTP log line now shows the masked phone.
+- Rate limits (in memory): OTP 3 per phone per 10 min and 20 per address per hour; chat 20 per user per minute.
+  Bodies over 64 KB: 413. CORS only for `CORS_ORIGINS` (new env vars `CORS_ORIGINS`, `MAX_BODY_BYTES`).
+- DEV_MODE off: `/api/dev/*` is 404 like an unknown path and is not in the docs (DEC-91, was 403).
+- A missing or stale forecast model is an ERROR line at start-up and a 503 `model_not_ready` with the reason.
+- Test added: advance-time twice and a restart replay create no duplicate reviews, alerts or notifications for
+  either demo shop.
+- The new check found the local model flagged stale (config.yaml gained the demo section in D-05 after training).
+  `make train` rebuilt a byte-identical model file (same SHA-256), so only the card's config hash and date changed.
+  Existing clones: run `make train` once. The check hashes the whole config, so a demo-only edit also asks for it.
+
 ## 2026-11-17: M-11 pricing helper
 
 - `GET /api/shops/{id}/pricing` (`app/ml/pricing.py`, DEC-89): margin per category from the last 90 days of item

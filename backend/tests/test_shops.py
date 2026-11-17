@@ -28,7 +28,7 @@ def test_other_owner_cannot_read_or_list_it(client, consented):
     other = login(client, "+919800000002")
     client.post("/api/consents", headers=other, json={"purpose": "shop_data"})
     r = client.get(f"/api/shops/{shop_id}", headers=other)
-    assert r.status_code == 404 and r.json()["detail"]["code"] == "shop_not_found"
+    assert r.status_code == 404 and r.json()["error"]["code"] == "shop_not_found"
     assert client.get("/api/shops", headers=other).json() == []
     mine = client.post("/api/shops", headers=other, json={**SHOP, "name": "Second Shop"}).json()
     assert [s["id"] for s in client.get("/api/shops", headers=other).json()] == [mine["id"]]

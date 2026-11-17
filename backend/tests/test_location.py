@@ -90,4 +90,4 @@ def test_endpoint_owner_only_and_needs_consent(client, consented):
     assert client.get(f"/api/shops/{sid}/location-score").status_code == 401
     assert client.delete("/api/consents", params={"purpose": "shop_data"}, headers=consented).status_code == 200
     r = client.get(f"/api/shops/{sid}/location-score", headers=consented)
-    assert r.status_code == 403 and r.json()["detail"]["code"] == "consent_required"
+    assert r.status_code == 403 and r.json()["error"]["code"] == "consent_required"

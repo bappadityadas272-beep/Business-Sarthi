@@ -22,6 +22,6 @@ if [ "${SEED_DEMO:-1}" = "1" ]; then
 fi
 
 if [ "${UVICORN_RELOAD:-0}" = "1" ]; then
-  exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+  exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log
 fi
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log   # the app logs each request as JSON (DEC-90)

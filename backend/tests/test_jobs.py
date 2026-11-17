@@ -93,7 +93,7 @@ def test_advance_time_is_refused_outside_dev_mode(client, consented, monkeypatch
     monkeypatch.setattr(dev_api, "get_settings", lambda: off)       # only the dev router sees DEV_MODE off
     before = clock.today()
     r = client.post("/api/dev/advance-time", headers=consented, json={"days": 5})
-    assert r.status_code == 403 and r.json()["detail"]["code"] == "dev_mode_off"
+    assert r.status_code == 404 and r.json()["error"]["code"] == "not_found"       # DEC-91: looks like no route
     assert clock.today() == before
 
 

@@ -1,4 +1,5 @@
-"""Demo-only tools, refused unless DEV_MODE is on (B-09). Never switch DEV_MODE on in a real deployment."""
+"""Demo-only tools (B-09). With DEV_MODE off every /api/dev path is 404 like an unknown path and is left out of the
+API docs (DEC-91; app.obs.DevGate does it before routing, this module checks again). Never switch DEV_MODE on in a real deployment."""
 from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException
@@ -32,7 +33,7 @@ class ClockOut(BaseModel):
 
 def _dev_only() -> None:
     if not get_settings().dev_mode:
-        raise HTTPException(403, detail={"code": "dev_mode_off"})
+        raise HTTPException(404, detail={"code": "not_found"})
 
 
 @router.get("/clock", response_model=ClockOut)

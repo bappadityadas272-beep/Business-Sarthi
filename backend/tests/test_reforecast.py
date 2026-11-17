@@ -197,10 +197,10 @@ def test_endpoint_ignores_a_log_dated_today(client, consented, with_model):
 def test_endpoint_errors(client, consented, with_model):
     no_forecast, _ = shop_with_history(client, consented, 40, forecast=False)
     r = client.post(f"/api/shops/{no_forecast}/reforecast", headers=consented)
-    assert r.status_code == 409 and r.json()["detail"]["code"] == "setup_forecast_missing"
+    assert r.status_code == 409 and r.json()["error"]["code"] == "setup_forecast_missing"
     few, _ = shop_with_history(client, consented, 5)
     r = client.post(f"/api/shops/{few}/reforecast", headers=consented)
-    assert r.status_code == 422 and r.json()["detail"] == {"code": "not_enough_days_logged", "days_logged": 5, "needed": 7}
+    assert r.status_code == 422 and r.json()["error"]["code"] == "not_enough_days_logged" and r.json()["error"]["details"] == {"days_logged": 5, "needed": 7}
     assert client.post(f"/api/shops/{few}/reforecast").status_code == 401
     client.delete("/api/consents", headers=consented, params={"purpose": "shop_data"})
     assert client.post(f"/api/shops/{few}/reforecast", headers=consented).status_code == 403

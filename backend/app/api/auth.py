@@ -1,7 +1,8 @@
 """Mock OTP login (B-02). PROTOTYPE: no SMS is sent; see app/services/auth.py."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
 
+from app import ratelimit
 from app.api.deps import Db
 from app.config import get_settings
 from app.models import User
@@ -17,9 +18,12 @@ def _fail(e: auth.AuthError) -> HTTPException:
 
 
 @router.post("/otp/request", response_model=OtpRequested)
-def otp_request(body: OtpRequest) -> OtpRequested:
+def otp_request(body: OtpRequest, request: Request) -> OtpRequested:
     try:
-        code = auth.request_otp(body.phone)
+        phone = auth.normalise_phone(body.phone)
+        ratelimit.check((ratelimit.OTP_PER_PHONE, phone),
+                        (ratelimit.OTP_PER_IP, request.client.host if request.client else "unknown"))
+        code = auth.request_otp(phone)
     except auth.AuthError as e:
         raise _fail(e) from e
     return OtpRequested(expires_in_seconds=int(auth.OTP_TTL.total_seconds()),

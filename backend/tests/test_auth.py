@@ -41,7 +41,7 @@ def test_second_login_is_the_same_user(client):
 def test_wrong_otp_is_rejected_and_right_one_still_works(client):
     otp = client.post("/api/auth/otp/request", json={"phone": PHONE}).json()["dev_otp"]
     r = client.post("/api/auth/otp/verify", json={"phone": PHONE, "otp": _wrong(otp)})
-    assert r.status_code == 401 and r.json()["detail"]["code"] == "otp_wrong"
+    assert r.status_code == 401 and r.json()["error"]["code"] == "otp_wrong"
     assert client.post("/api/auth/otp/verify", json={"phone": PHONE, "otp": otp}).status_code == 200
 
 
@@ -49,7 +49,7 @@ def test_otp_works_only_once(client):
     otp = client.post("/api/auth/otp/request", json={"phone": PHONE}).json()["dev_otp"]
     assert client.post("/api/auth/otp/verify", json={"phone": PHONE, "otp": otp}).status_code == 200
     r = client.post("/api/auth/otp/verify", json={"phone": PHONE, "otp": otp})
-    assert r.status_code == 401 and r.json()["detail"]["code"] == "otp_not_requested"
+    assert r.status_code == 401 and r.json()["error"]["code"] == "otp_not_requested"
 
 
 def test_five_wrong_tries_burn_the_code(client):
@@ -61,7 +61,7 @@ def test_five_wrong_tries_burn_the_code(client):
 
 def test_verify_without_request_and_bad_phone(client):
     r = client.post("/api/auth/otp/verify", json={"phone": PHONE, "otp": "123456"})
-    assert r.status_code == 401 and r.json()["detail"]["code"] == "otp_not_requested"
+    assert r.status_code == 401 and r.json()["error"]["code"] == "otp_not_requested"
     assert client.post("/api/auth/otp/request", json={"phone": "not-a-phone"}).status_code == 422
 
 

@@ -20,7 +20,11 @@ On start, `backend/docker/start.sh` does the following:
 3. loads the two SYNTHETIC demo shops if they are missing (`SEED_DEMO=1`, the default);
 4. starts the API at <http://localhost:8000>, with interactive docs at <http://localhost:8000/docs>.
 
-The API is ready when `docker compose ps` shows `healthy`, or when <http://localhost:8000/api/health> answers.
+The API is up when `docker compose ps` shows `healthy`, or when <http://localhost:8000/api/health> answers. It is
+**ready** for the demo when <http://localhost:8000/api/ready> answers 200; a 503 lists what is missing (database
+not migrated, forecast model missing or stale, LLM key missing) and the command that fixes it.
+<http://localhost:8000/api/about> shows the model card (trained on SYNTHETIC data) and which rule files are
+assumptions.
 
 With the `.env` copied unchanged, the chatbot uses the `stub` provider: no key and no network. To use Gemini, set
 `LLM_PROVIDER=gemini` and `LLM_API_KEY=...` in `.env`, then run `docker compose up -d --force-recreate`. Never
@@ -91,6 +95,9 @@ back, so do not restore one after a deletion request without removing that owner
 
 | Symptom | Cause and fix |
 |---|---|
+| `/api/ready` 503, model `model_stale_config_changed` or `model_file_changed` | The SYNTHETIC config or the model file changed after training. Run `docker compose run --rm backend make train`, then restart. Forecasts answer 503 `model_not_ready` until then. |
+| 429 `rate_limited` | Too many OTP requests (3 per phone per 10 min, 20 per address per hour) or chat messages (20 per user per minute). Wait `retry_after` seconds. A restart clears the counters. |
+| 404 on `/api/dev/...` | `DEV_MODE` is off; the demo clock is switched off on purpose (DEC-91). |
 | `port is already allocated` / `bind: address already in use` | Another program or a second clone is using port 8000. Stop it, or run `API_PORT=8001 docker compose up`, then open port 8001. |
 | The first start takes minutes, and `docker compose ps` shows `starting` | Normal: the SYNTHETIC data is generated and the model trained once. Watch with `docker compose logs -f backend`. |
 | `start.sh: not found` or `$'\r': command not found` | The script was checked out with Windows line endings. `.gitattributes` forces LF for `*.sh`; check the file out again with `git checkout -- backend/docker/start.sh`. |

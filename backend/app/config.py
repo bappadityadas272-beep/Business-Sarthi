@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     nominatim_url: str = "https://nominatim.openstreetmap.org"
     app_user_agent: str = "BusinessSarthi/0.1 (prototype)"
     osm_mode: Literal["mock", "live"] = "mock"       # DEC-47: mock answers by default, no network
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"   # comma-separated; no wildcard (DEC-90)
+    max_body_bytes: int = 65536                       # larger request bodies get 413 (DEC-90)
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip() and o.strip() != "*"]
 
 
 @lru_cache

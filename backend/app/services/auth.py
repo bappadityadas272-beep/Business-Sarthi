@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 
 from app.config import DEV_JWT_SECRET, get_settings
+from app.obs import mask_phone
 
 log = logging.getLogger("sarthi.auth")
 
@@ -59,7 +60,7 @@ def request_otp(phone: str, now: datetime | None = None) -> str:
     code = f"{secrets.randbelow(10**6):06d}"
     _store[phone] = _Otp(code, (now or datetime.now(UTC)) + OTP_TTL)
     if get_settings().dev_mode:
-        log.warning("MOCK OTP for %s is %s (DEV_MODE; no SMS is sent)", phone, code)
+        log.warning("MOCK OTP for %s is %s (DEV_MODE; no SMS is sent)", mask_phone(phone), code)   # DEC-90
     return code
 
 

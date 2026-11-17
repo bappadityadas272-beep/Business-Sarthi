@@ -178,7 +178,7 @@ def test_endpoint_needs_login_consent_and_ownership(client, consented, with_mode
     assert client.post(f"/api/shops/{shop_id}/forecast", headers=other).status_code == 404      # not their shop
     client.delete("/api/consents", headers=consented, params={"purpose": "shop_data"})
     r = client.post(f"/api/shops/{shop_id}/forecast", headers=consented)
-    assert r.status_code == 403 and r.json()["detail"]["code"] == "consent_required"            # withdrawn: no computing
+    assert r.status_code == 403 and r.json()["error"]["code"] == "consent_required"            # withdrawn: no computing
 
 
 def test_endpoint_says_503_when_the_model_is_missing(client, consented, monkeypatch, tmp_path):
@@ -187,4 +187,4 @@ def test_endpoint_says_503_when_the_model_is_missing(client, consented, monkeypa
     monkeypatch.setattr(fc, "load_model", lambda: real_load(tmp_path))
     shop_id = client.post("/api/shops", headers=consented, json=SHOP).json()["id"]
     r = client.post(f"/api/shops/{shop_id}/forecast", headers=consented)
-    assert r.status_code == 503 and r.json()["detail"]["code"] == "model_not_ready"
+    assert r.status_code == 503 and r.json()["error"]["code"] == "model_not_ready"

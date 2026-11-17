@@ -3,6 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from app import ratelimit
 from app.db import Base, get_db, make_engine
 from app.main import app
 from app.services import auth, clock
@@ -42,6 +43,7 @@ def client(db_factory):
     app.dependency_overrides[get_db] = _db
     auth.reset_store()
     clock.reset()
+    ratelimit.reset()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

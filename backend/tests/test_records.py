@@ -48,13 +48,13 @@ def test_range_read_includes_both_ends_and_missing_days_stay_missing(client, con
     assert len(client.get(url, headers=consented, params={"to": str(days[0])}).json()["entries"]) == 1
     assert client.get(url, headers=consented).json()["days_logged"] == 5
     r = client.get(url, headers=consented, params={"from": str(t), "to": str(days[0])})
-    assert r.status_code == 422 and r.json()["detail"]["code"] == "from_after_to"
+    assert r.status_code == 422 and r.json()["error"]["code"] == "from_after_to"
 
 
 def test_logs_reject_future_days_negative_values_and_unknown_categories(client, consented, shop_id):
     url, t = f"/api/shops/{shop_id}/logs", clock.today()
     r = client.post(url, headers=consented, json={"entries": [entry(t), entry(t + timedelta(days=1))]})
-    assert r.status_code == 422 and r.json()["detail"]["code"] == "day_in_future"
+    assert r.status_code == 422 and r.json()["error"]["code"] == "day_in_future"
     assert client.get(url, headers=consented).json()["entries"] == []       # nothing saved from a rejected request
     assert client.post(url, headers=consented, json={"entries": [entry(t, sales=-1)]}).status_code == 422
     assert client.post(url, headers=consented, json={"entries": [entry(t, "toys")]}).status_code == 422
@@ -105,11 +105,11 @@ def test_moves_are_all_or_nothing_and_checked(client, consented, shop_id):
     for bad, status, code in (({**ok, "item_id": 9999}, 404, "item_not_found"), ({**ok, "qty": -2, "kind": "sale"}, 422, "bad_quantity"),
                               ({**ok, "qty": 0}, 422, "bad_quantity"), ({**ok, "day": str(t + timedelta(days=1))}, 422, "day_in_future")):
         r = client.post(f"{base}/moves", headers=consented, json={"moves": [ok, bad]})
-        assert r.status_code == status and r.json()["detail"]["code"] == code
+        assert r.status_code == status and r.json()["error"]["code"] == code
     assert client.post(f"{base}/moves", headers=consented, json={"moves": [{**ok, "kind": "gift"}]}).status_code == 422
     assert client.get(base, headers=consented).json()[0]["on_hand"] == 5     # none of the rejected batches was saved
     r = client.post(base, headers=consented, json={**ITEM, "name": "toor DAL 1 kg"})
-    assert r.status_code == 409 and r.json()["detail"] == {"code": "item_exists", "item_id": item["id"]}
+    assert r.status_code == 409 and r.json()["error"]["code"] == "item_exists" and r.json()["error"]["details"] == {"item_id": item["id"]}
 
 
 def test_stock_and_assets_belong_to_one_owner(client, consented, shop_id):
@@ -125,7 +125,7 @@ def test_stock_and_assets_belong_to_one_owner(client, consented, shop_id):
     theirs = client.post("/api/shops", headers=other, json=SHOP).json()["id"]
     move = {"item_id": item["id"], "day": str(clock.today()), "qty": 1, "kind": "sale"}
     r = client.post(f"/api/shops/{theirs}/stock/moves", headers=other, json={"moves": [move]})
-    assert r.status_code == 404 and r.json()["detail"]["code"] == "item_not_found"     # an item of another shop
+    assert r.status_code == 404 and r.json()["error"]["code"] == "item_not_found"     # an item of another shop
     assert client.get(f"/api/shops/{theirs}/stock", headers=other).json() == []
 
 

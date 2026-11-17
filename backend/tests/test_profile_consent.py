@@ -14,7 +14,7 @@ def test_language_update_and_validation(client, auth_headers):
 def test_shop_creation_refused_403_without_consent(client, auth_headers):
     r = client.post("/api/shops", headers=auth_headers, json=SHOP)
     assert r.status_code == 403
-    assert r.json()["detail"] == {"code": "consent_required", "purpose": "shop_data"}
+    assert r.json()["error"]["code"] == "consent_required" and r.json()["error"]["details"] == {"purpose": "shop_data"}
     assert client.get("/api/shops", headers=auth_headers).json() == []          # nothing was stored
 
 
