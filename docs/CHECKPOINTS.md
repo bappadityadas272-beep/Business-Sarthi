@@ -4,12 +4,14 @@
 
 ```yaml
 project_status:
-  phase: "1 - backend core: hero loop done (forecast, logs, stock, loans, review, alerts, scheduler, demo seed); chatbot and frontend not started"
+  phase: "1 - backend core done (hero loop + grounded chatbot API: C-01, C-04 to C-07); frontend not started"
   last_updated: "2026-11-17"
-  current_focus: "chatbot chain C-01, C-04, C-05, C-06, C-07, C-08 runner (order set by the human)"
-  blockers: []
+  current_focus: "next: frontend skeleton S-03, then F-01..F-04 (or D-03 + C-02 + C-03 for the scheme half of demo step 7)"
+  blockers:
+    - "C-08: needs the 30 questions in eval/chat_eval.jsonl (written by the team, DEC-80) and a live LLM key"
+    - "Live provider check of C-07 not run: no .env with LLM_PROVIDER and LLM_API_KEY yet"
   demo_path_ready: false
-  notes: "Backend hero loop works end to end on synthetic demo data (make synth, make train, make seed, advance time). Open for the human: confirm DEC-53, DEC-54, DEC-56, DEC-60, DEC-63, DEC-66, DEC-68, DEC-69, DEC-71 (details the assistant chose); the demo raises no sales-dip alert (CHANGELOG D-05); live Overpass answer format is unverified. Frontend and chatbot not started by instruction."
+  notes: "Backend works end to end on synthetic demo data (make synth, make train, make seed, advance time); POST /api/chat answers demo step 7 'Is mahine ka profit kitna hai?' in Hinglish, Hindi and English with the stub, guard first, then SSE (DEC-73, DEC-79). Missed targets: scheme half of step 7 is a template until D-03, C-02, C-03 (DEC-74); live Gemini check (make chat-live) not run; tests run only in Docker (Smart App Control blocks host DLLs). Live Overpass answer format is unverified. app_help.yaml is a draft until the frontend exists (DEC-78)."
 ```
 
 **Status values:** `TODO` · `IN_PROGRESS` · `DONE` · `BLOCKED` · `DROPPED`
@@ -81,7 +83,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | C-05 | Router + prompt builder + language handling | F7 | P0 | C-01, C-04 | DONE | Intent routing correct on 20 sample questions; reply language matches | `app/llm/router.py` (rules first, `<classify>` LLM fallback limited to the 5 labels), `language.py` (hi / hinglish / en), `prompts/system.md`, `prompts/classify.md`, builder in `prompts/__init__.py`, `templates.py` (3 languages, Indian ₹ grouping), `app_help.yaml` (draft); 46 tests: 20 routes, 10 languages, 7 refusals (DEC-78 proposed) |
 | C-06 | Guard (number and citation check) + fallback template | F7 | P0 | C-05 | DONE | Injected wrong number is caught and replaced by the template | `app/llm/guard.py` (DEC-76); `tests/test_guard.py` 19 tests: wrong number, swapped ₹/lakh, Devanagari, other-month number, invented scheme, tool-output injection, "ignore your rules", guarantee/link/script; forced bad stub answer gives the template; every demo template answer passes. Question numbers count as plain only |
 | C-07 | `POST /api/chat` with streaming | F7 | P0 | C-06, C-03, B-03 | DONE | Demo script step 7 works with stub and with a real provider | Built before C-03 (DEC-74). `app/services/chat.py` + `app/api/chat.py`: SSE meta/delta/done after the guard (DEC-73, DEC-79); both turns stored with sources; login + consent + own shop. `tests/test_chat_api.py`: profit question in Hinglish, Hindi and English passes the guard with the code's number. **Missed:** scheme half of step 7 (template only, until D-03, C-02, C-03); live provider check `eval/chat_live_check.py` not run yet (no `.env` with a key) |
-| C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | TODO | `eval/chat_eval.py` reports groundedness at least 90% | |
+| C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | BLOCKED | `eval/chat_eval.py` reports groundedness at least 90% | Runner done (`make eval-chat`, DEC-80; `tests/test_chat_eval.py` 9 tests). Blocked on: the 30 questions in `eval/chat_eval.jsonl` (team writes them, not the model) and a live LLM key (with the stub the score is meaningless) |
 
 ## F: Frontend
 

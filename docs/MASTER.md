@@ -104,12 +104,14 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 
 ```yaml
 project_status:
-  phase: "1 - backend core: hero loop done (forecast, logs, stock, loans, review, alerts, scheduler, demo seed); chatbot and frontend not started"
+  phase: "1 - backend core done (hero loop + grounded chatbot API: C-01, C-04 to C-07); frontend not started"
   last_updated: "2026-11-17"
-  current_focus: "chatbot chain C-01, C-04, C-05, C-06, C-07, C-08 runner (order set by the human)"
-  blockers: []
+  current_focus: "next: frontend skeleton S-03, then F-01..F-04 (or D-03 + C-02 + C-03 for the scheme half of demo step 7)"
+  blockers:
+    - "C-08: needs the 30 questions in eval/chat_eval.jsonl (written by the team, DEC-80) and a live LLM key"
+    - "Live provider check of C-07 not run: no .env with LLM_PROVIDER and LLM_API_KEY yet"
   demo_path_ready: false
-  notes: "Backend hero loop works end to end on synthetic demo data (make synth, make train, make seed, advance time). Open for the human: confirm DEC-53, DEC-54, DEC-56, DEC-60, DEC-63, DEC-66, DEC-68, DEC-69, DEC-71 (details the assistant chose); the demo raises no sales-dip alert (CHANGELOG D-05); live Overpass answer format is unverified. Frontend and chatbot not started by instruction."
+  notes: "Backend works end to end on synthetic demo data (make synth, make train, make seed, advance time); POST /api/chat answers demo step 7 'Is mahine ka profit kitna hai?' in Hinglish, Hindi and English with the stub, guard first, then SSE (DEC-73, DEC-79). Missed targets: scheme half of step 7 is a template until D-03, C-02, C-03 (DEC-74); live Gemini check (make chat-live) not run; tests run only in Docker (Smart App Control blocks host DLLs). Live Overpass answer format is unverified. app_help.yaml is a draft until the frontend exists (DEC-78)."
 ```
 
 **Status values:** `TODO` · `IN_PROGRESS` · `DONE` · `BLOCKED` · `DROPPED`
@@ -180,8 +182,8 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | C-04 | Chat tools (`get_forecast`, `get_latest_review`, ...) | F7 | P0 | M-05, M-08, M-07, M-09 | DONE | Each tool returns structured JSON for the demo shop | `app/llm/tools.py`: six tools; each output has `source` {id,label}, `as_of`, `note` and flat `facts` {key,value,unit,period}; profit periods and EMI shown apart per DEC-77; `match_schemes` returns `[]` with `no_verified_source` (DEC-74); `run()` checks owner and consent (one `shop_not_found` error); 8 tests on both demo shops |
 | C-05 | Router + prompt builder + language handling | F7 | P0 | C-01, C-04 | DONE | Intent routing correct on 20 sample questions; reply language matches | `app/llm/router.py` (rules first, `<classify>` LLM fallback limited to the 5 labels), `language.py` (hi / hinglish / en), `prompts/system.md`, `prompts/classify.md`, builder in `prompts/__init__.py`, `templates.py` (3 languages, Indian ₹ grouping), `app_help.yaml` (draft); 46 tests: 20 routes, 10 languages, 7 refusals (DEC-78 proposed) |
 | C-06 | Guard (number and citation check) + fallback template | F7 | P0 | C-05 | DONE | Injected wrong number is caught and replaced by the template | `app/llm/guard.py` (DEC-76); `tests/test_guard.py` 19 tests: wrong number, swapped ₹/lakh, Devanagari, other-month number, invented scheme, tool-output injection, "ignore your rules", guarantee/link/script; forced bad stub answer gives the template; every demo template answer passes. Question numbers count as plain only |
-| C-07 | `POST /api/chat` with streaming | F7 | P0 | C-06, C-03, B-03 | TODO | Demo script step 7 works with stub and with a real provider | |
-| C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | TODO | `eval/chat_eval.py` reports groundedness at least 90% | |
+| C-07 | `POST /api/chat` with streaming | F7 | P0 | C-06, C-03, B-03 | DONE | Demo script step 7 works with stub and with a real provider | Built before C-03 (DEC-74). `app/services/chat.py` + `app/api/chat.py`: SSE meta/delta/done after the guard (DEC-73, DEC-79); both turns stored with sources; login + consent + own shop. `tests/test_chat_api.py`: profit question in Hinglish, Hindi and English passes the guard with the code's number. **Missed:** scheme half of step 7 (template only, until D-03, C-02, C-03); live provider check `eval/chat_live_check.py` not run yet (no `.env` with a key) |
+| C-08 | Chat evaluation set (30 questions) and runner | F7 | P1 | C-07 | BLOCKED | `eval/chat_eval.py` reports groundedness at least 90% | Runner done (`make eval-chat`, DEC-80; `tests/test_chat_eval.py` 9 tests). Blocked on: the 30 questions in `eval/chat_eval.jsonl` (team writes them, not the model) and a live LLM key (with the stub the score is meaningless) |
 
 ## F: Frontend
 
@@ -986,7 +988,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-75 | 2026-11-17 | LLM client settings, **approved by the human**: providers call the REST APIs with `httpx` (already pinned; no new SDK); model name from a new env var `LLM_MODEL` (provider default otherwise); up to 3 retries on 429, 5xx, timeout or network error, waiting 1, 2 and 4 s times a random jitter of 0.5 to 1.5 (a `Retry-After` header is honoured up to 10 s); 20 s timeout per call; then the guard's template answer. Identical questions are cached in memory per (shop, app date, normalised question, facts hash), lost on restart; max 400 output tokens, temperature 0.2. Keys come only from the environment and are never logged; prompts are never logged | Gemini free tier has rate limits; keep dependencies small | Official SDKs; cache in the database | ACTIVE |
 | DEC-76 | 2026-11-17 | Guard (C-06) plan, **approved by the human**: every number in the answer (ASCII or Devanagari digits, Indian or Western separators, rupee signs, lakh, crore, thousand/hazaar, k, percent, written words in Hindi, Hinglish and English from a fixed list) is normalised to (value, kind: money, percent or plain) and must match a numeric fact of THIS turn's tool output at the precision it was written in, with the same kind; numbers from the question and dates that appear in the facts are allowed; any scheme name (fixed list of well-known names plus a "<Name> Yojana" pattern) must exist in the KB and be cited with a KB id from this turn's sources; links not in the sources, guarantee words and a reply script other than the question's also fail. Owner-typed strings enter the prompt only as escaped JSON data. On failure the owner sees a template filled from the tool result in their language, and only the failure types are logged | The LLM explains, code decides (DEC-06); a check independent of the LLM also defeats prompt injection | Fixed relative tolerance only; trust the LLM's citations | ACTIVE |
 | DEC-77 | 2026-11-17 | Chat behaviour defaults, **approved by the human**: profit = logged sales - purchases - expenses (DEC-64c) for `this_month` (1st of the month to yesterday by the app clock), `last_month`, `last_30_days` or `last_90_days`; the EMI due in the period is shown next to it, not subtracted. Smalltalk, refusals, out-of-scope and scheme answers without a KB are templates (no LLM call); `how_to` is answered from a short app-help facts file. Each question is answered on its own: earlier turns are stored but not sent to the LLM. Language: Devanagari script = Hindi; Latin script with Hindi words = Hinglish (answered in Latin script); otherwise English | Simplest grounded behaviour; history would bring in numbers the guard cannot tie to this turn's facts | Send the last turns; subtract the EMI from profit | ACTIVE |
-| DEC-78 | 2026-11-17 | Chat prompt and router details (C-05): (a) the LLM gets the tool outputs as escaped JSON in `<facts>` plus a `<draft>`, the template answer built by code from the same facts, and is told to rephrase it for the exact question while keeping its numbers; the guard still checks the reply against the facts. (b) Keyword lists live in `app/llm/router.py` and `language.py`; refusal order is medical, legal, guarantee; "guarantee" also covers market investment advice (share market, mutual fund, crypto, "where should I invest") but not a plain "invest", so "should I invest in a fridge" is a shop question. (c) `app/llm/app_help.yaml` is a draft until the frontend screens exist | A draft keeps a small model's numbers right and cuts guard failures; plain "invest" is common in real shop questions | LLM writes from facts alone; refuse every "invest" | PROPOSED (to confirm with the human at C-07) |
+| DEC-78 | 2026-11-17 | Chat prompt and router details (C-05): (a) the LLM gets the tool outputs as escaped JSON in `<facts>` plus a `<draft>`, the template answer built by code from the same facts, and is told to rephrase it for the exact question while keeping its numbers; the guard still checks the reply against the facts. (b) Keyword lists live in `app/llm/router.py` and `language.py`; refusal order is medical, legal, guarantee; "guarantee" also covers market investment advice (share market, mutual fund, crypto, "where should I invest") but not a plain "invest", so "should I invest in a fridge" is a shop question. (c) `app/llm/app_help.yaml` is a draft until the frontend screens exist | A draft keeps a small model's numbers right and cuts guard failures; plain "invest" is common in real shop questions | LLM writes from facts alone; refuse every "invest" | ACTIVE (approved by the human at C-07) |
+| DEC-79 | 2026-11-17 | Chat stream format (C-07), **chosen by the human**: `POST /api/chat` with body `{shop_id, message}` returns `text/event-stream` (SSE): one `meta` event (language, intent), `delta` events with chunks of the already approved text (DEC-73), then one `done` event with `message_id`, `guard` (`passed`, `failed`, `template` or `llm_unavailable`) and `sources` (one entry per tool: source id, label, as_of, is_estimate and the facts used). The user and assistant turns are stored as `chat_message` rows; `sources_json` holds the same sources | Standard format the React client can read with `fetch`; sources reach the UI in the same response | NDJSON lines; plain text with sources in a header | ACTIVE |
+| DEC-80 | 2026-11-17 | Chat evaluation (C-08), **chosen by the human**: each line of `eval/chat_eval.jsonl` has `id`, `question`, `expected_intent` (my_numbers, schemes, how_to, smalltalk or out_of_scope), and optionally `shop` (ramesh or sunita, default ramesh), `expected_refusal` (medical, legal or guarantee), `expected_facts` (fact keys whose numbers must appear in the answer) and `notes`. **Grounded** = the LLM's own reply passed the guard; template-only intents count as grounded; a guard failure or provider outage counts as NOT grounded, even though the owner saw a safe template. Correct refusal = the expected refusal kind was given, and no refusal when none was expected. The questions are written by the team, not by the coding model | Measures how often the LLM itself goes wrong, not just whether the owner was protected | Count the template fallback as grounded; no expected facts | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -998,6 +1002,48 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: C-08 evaluation runner
+
+- **Checkpoint:** C-08 is BLOCKED: the runner is done, but the acceptance cannot run yet.
+  - It needs the team's 30 questions in `eval/chat_eval.jsonl`. The coding model must not write them (DEC-80).
+  - It needs a live provider: with the stub every answer is the template, so the score says nothing.
+- `eval/chat_eval.py` (`make eval-chat`):
+  - It checks every line of the file and names the line and field of any error.
+  - It seeds the two SYNTHETIC demo shops into a throwaway database, moves the clock 2 days and runs the daily
+    job, as in the demo.
+  - It asks each question through the real chat service.
+  - It reports these measures (DEC-80): grounded (the LLM's own reply passed the guard; template-only intents
+    count; a guard failure or a provider outage does not), correct refusals, intent accuracy, and expected facts
+    present. `--json` writes the rows and the summary to a file.
+- `make chat-live` runs `eval/chat_live_check.py` (from C-07).
+- `chat.Turn` now carries `refusal` and `via`.
+- Full suite: 321 passed; ruff is clean over backend, data/synthetic and eval.
+
+## 2026-11-17: C-07 chat endpoint
+
+- **Checkpoint:** C-07 DONE for the stub. Acceptance: demo step 7 "Is mahine ka profit kitna hai?" in Hinglish,
+  Hindi and English gives the code-computed profit, and the guard passes it (`tests/test_chat_api.py`, 11 tests;
+  full suite 321 passed).
+- **Missed targets:**
+  - The live provider check has not run, because no `.env` with `LLM_PROVIDER` and `LLM_API_KEY` exists. Run
+    `cd backend && python ../eval/chat_live_check.py` (in Docker) once it is set.
+  - The scheme half of step 7 is template only (DEC-74).
+- Decisions:
+  - DEC-78 approved (now ACTIVE).
+  - DEC-79 (new): `POST /api/chat {shop_id, message}` streams SSE events (`meta`, then `delta`s, then `done` with
+    `message_id`, `guard` and `sources`).
+- `app/services/chat.py`, `answer()`: detect the language, route, run the tools, build the template, then:
+  - for `my_numbers` and `how_to` only: check the cache, call the LLM, run the guard;
+  - store the user and assistant `chat_message` rows. `sources_json` has one entry per tool, and every fact
+    carries its source label.
+  - `guard` values: `passed`, `failed` (the template is shown), `template` (no LLM call) or `llm_unavailable`.
+  - Only passed answers are cached.
+- `tests/conftest.py` now forces `LLM_PROVIDER=stub` for every test, so a key in `.env` never makes tests call a
+  hosted API.
+- Fixes found while testing C-07:
+  - The scheme template said "pakki" (a guarantee word for the guard); it now says "sahi".
+  - The Devanagari scheme-name rule no longer flags generic phrases such as "किसी योजना" or "योजनाओं".
 
 ## 2026-11-17: C-06 answer guard
 

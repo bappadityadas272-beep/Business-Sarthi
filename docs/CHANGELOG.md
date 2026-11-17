@@ -2,10 +2,28 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-08 evaluation runner
+
+- **Checkpoint:** C-08 is BLOCKED: the runner is done, but the acceptance cannot run yet.
+  - It needs the team's 30 questions in `eval/chat_eval.jsonl`. The coding model must not write them (DEC-80).
+  - It needs a live provider: with the stub every answer is the template, so the score says nothing.
+- `eval/chat_eval.py` (`make eval-chat`):
+  - It checks every line of the file and names the line and field of any error.
+  - It seeds the two SYNTHETIC demo shops into a throwaway database, moves the clock 2 days and runs the daily
+    job, as in the demo.
+  - It asks each question through the real chat service.
+  - It reports these measures (DEC-80): grounded (the LLM's own reply passed the guard; template-only intents
+    count; a guard failure or a provider outage does not), correct refusals, intent accuracy, and expected facts
+    present. `--json` writes the rows and the summary to a file.
+- `make chat-live` runs `eval/chat_live_check.py` (from C-07).
+- `chat.Turn` now carries `refusal` and `via`.
+- Full suite: 321 passed; ruff is clean over backend, data/synthetic and eval.
+
 ## 2026-11-17: C-07 chat endpoint
 
 - **Checkpoint:** C-07 DONE for the stub. Acceptance: demo step 7 "Is mahine ka profit kitna hai?" in Hinglish,
-  Hindi and English gives the code-computed profit, and the guard passes it (`tests/test_chat_api.py`).
+  Hindi and English gives the code-computed profit, and the guard passes it (`tests/test_chat_api.py`, 11 tests;
+  full suite 321 passed).
 - **Missed targets:**
   - The live provider check has not run, because no `.env` with `LLM_PROVIDER` and `LLM_API_KEY` exists. Run
     `cd backend && python ../eval/chat_live_check.py` (in Docker) once it is set.
