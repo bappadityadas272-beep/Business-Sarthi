@@ -136,7 +136,8 @@ def train(data_dir: Path = DATA_DIR, out: Path = MODEL_DIR, seed: int = 42) -> d
         raise ValueError("training data must be the labelled synthetic set (metadata is_synthetic=true)")
     shops = pd.read_csv(data_dir / "shops.csv")
     table = training_table(shops, pd.read_csv(data_dir / "daily.csv"))
-    assert not any(c.startswith("latent_") for c in FEATURES)
+    if any(c.startswith("latent_") for c in FEATURES):           # not assert: kept under python -O
+        raise ValueError("a latent_ column (the generator's hidden truth) is in FEATURES: that would leak the answer")
     split = split_shops(shops["shop_id"].tolist(), seed)
     part = {name: table[table["shop_id"].isin(ids)].reset_index(drop=True) for name, ids in split.items()}
 

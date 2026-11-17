@@ -66,3 +66,27 @@ This is an engineering self-audit by the coding model, not an external security 
 | A1-6 | Running the audit image build and a test container at the same time crashed Docker Desktop on the laptop (engine 500, "EOF") | environment | no code change; run heavy Docker jobs one at a time on this machine |
 
 No security finding in round 1.
+
+## Round 2 (2026-11-18, commit `d45608d`)
+
+### Results
+
+| Check | Result |
+|---|---|
+| Fresh clone: lint, mypy, train, tests | clean; **549 passed** (546 + the 3 round-1 tests) |
+| `make eval` | equal to the committed report (no change apart from line endings) |
+| `make demo-e2e` | 7 PASS, 0 FAIL, 1 MISSED (same known gap) |
+| Secrets, forbidden files | 0 hits (unchanged) |
+| pip-audit | no known vulnerabilities |
+| bandit, medium and high | 0 |
+| bandit, low (reviewed one by one this round) | 5: 2× B105 in `app/errors.py` are message texts ("invalid_token", "token_expired"), false positives; 1× B105 `DEV_JWT_SECRET` in `app/config.py` is the labelled dev placeholder, refused outside dev mode (but see A2-2); 2× B101 `assert` used as data-leakage guards in `app/ml/train.py` and `app/ml/calibrate.py` (A2-1) |
+| `DEV_MODE=0` with **no** `JWT_SECRET`, real process | see A2-2 |
+
+### Findings
+
+| # | Finding | Severity | Action |
+|---|---|---|---|
+| A2-1 | The two training leakage guards (calibration shops disjoint from train/test; no `latent_` column in the features) were `assert`s, which `python -O` removes | low | **fixed**: explicit `ValueError` with the fix |
+| A2-2 | With `DEV_MODE=0` and `JWT_SECRET` unset (or empty), `/api/ready` answered **200 "ready"** while every login failed with a generic **500**; an empty or short secret was not checked at all | medium (operability; no secret leaked, the placeholder was already refused) | **fixed (DEC-97, chosen by the human)**: `/api/ready` has an `auth` check (503 with the fix); OTP request, verify and token reads answer 503 `auth_not_configured`, checked before an OTP is made or used; startup logs the error; under 32 characters counts as not set (RFC 7518 section 3.2). Tests in `test_hardening.py`; RUNBOOK symptom row; `.env.example` comment |
+
+Round 2 found something new, so round 3 runs.

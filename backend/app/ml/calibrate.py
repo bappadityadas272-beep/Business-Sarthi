@@ -64,7 +64,8 @@ def calibrate(data_dir: Path = DATA_DIR, model_dir: Path = MODEL_DIR) -> dict:
     model, card = load(model_dir)
     split = json.loads((model_dir / "split.json").read_text(encoding="utf-8"))
     cal_ids = set(split["calibration"])
-    assert cal_ids.isdisjoint(split["train"]) and cal_ids.isdisjoint(split["test"])
+    if not (cal_ids.isdisjoint(split["train"]) and cal_ids.isdisjoint(split["test"])):   # not assert: kept under -O
+        raise ValueError("calibration shops overlap the train or test shops (split.json); retrain with `make train`")
     shops = pd.read_csv(data_dir / "shops.csv")
     shops = shops[shops["shop_id"].isin(cal_ids)]              # nothing outside the calibration shops is read
     daily = pd.read_csv(data_dir / "daily.csv")

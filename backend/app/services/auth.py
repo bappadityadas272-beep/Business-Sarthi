@@ -27,6 +27,37 @@ DEFAULT_SECRET = DEV_JWT_SECRET
 _PHONE = re.compile(r"^\+?[1-9][0-9]{9,14}$")
 
 
+MIN_SECRET_LEN = 32          # HS256 key of at least 256 bits (RFC 7518 section 3.2)
+
+
+class AuthNotConfigured(RuntimeError):
+    """DEV_MODE is off and JWT_SECRET is unset, the dev placeholder, or too short (DEC-41, DEC-97).
+    The API answers 503 `auth_not_configured` and /api/ready says why; no token is made or read."""
+
+    def __init__(self, reason: str, fix: str):
+        super().__init__(f"{reason}: {fix}")
+        self.reason = reason
+
+
+def auth_check() -> dict:
+    """Readiness of login. Dev mode may use the placeholder secret; outside it a real secret is required."""
+    s = get_settings()
+    if s.dev_mode:
+        return {"ok": True, "reason": "dev_mode_placeholder_secret" if s.jwt_secret == DEFAULT_SECRET else None}
+    fix = f"set JWT_SECRET in .env (at least {MIN_SECRET_LEN} random characters)"
+    if not s.jwt_secret or s.jwt_secret == DEFAULT_SECRET:
+        return {"ok": False, "reason": "jwt_secret_not_set", "fix": fix}
+    if len(s.jwt_secret) < MIN_SECRET_LEN:
+        return {"ok": False, "reason": "jwt_secret_too_short", "fix": fix}
+    return {"ok": True, "reason": None}
+
+
+def require_configured() -> None:
+    c = auth_check()
+    if not c["ok"]:
+        raise AuthNotConfigured(c["reason"], c["fix"])
+
+
 class AuthError(Exception):
     """Raised with a stable `code` the API turns into an error response."""
 
@@ -84,10 +115,8 @@ def verify_otp(phone: str, code: str, now: datetime | None = None) -> str:
 
 
 def _secret() -> str:
-    s = get_settings()
-    if not s.dev_mode and s.jwt_secret == DEFAULT_SECRET:
-        raise RuntimeError("JWT_SECRET must be set in .env when DEV_MODE is off")
-    return s.jwt_secret
+    require_configured()
+    return get_settings().jwt_secret
 
 
 def account_stamp(created_at: datetime) -> int:

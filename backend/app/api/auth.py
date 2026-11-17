@@ -19,6 +19,7 @@ def _fail(e: auth.AuthError) -> HTTPException:
 
 @router.post("/otp/request", response_model=OtpRequested)
 def otp_request(body: OtpRequest, request: Request) -> OtpRequested:
+    auth.require_configured()                 # DEC-97: no code is made when no token could be issued afterwards
     try:
         phone = auth.normalise_phone(body.phone)
         ratelimit.check((ratelimit.OTP_PER_PHONE, phone),
@@ -32,6 +33,7 @@ def otp_request(body: OtpRequest, request: Request) -> OtpRequested:
 
 @router.post("/otp/verify", response_model=Token)
 def otp_verify(body: OtpVerify, db: Db) -> Token:
+    auth.require_configured()                 # DEC-97: before the code is used up and the account created
     try:
         phone = auth.verify_otp(body.phone, body.otp)
     except auth.AuthError as e:

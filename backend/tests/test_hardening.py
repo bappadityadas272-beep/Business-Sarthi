@@ -268,3 +268,45 @@ def test_about_shows_the_model_card_and_assumption_flags(client, monkeypatch):
                         lambda: {**OK_MODEL, "ok": False, "reason": "model_files_missing", "fix": "make train"})
     gone = client.get("/api/about").json()["model"]
     assert gone["card"] is None and gone["status"]["reason"] == "model_files_missing" and gone["is_synthetic"]
+
+
+# ---- login configuration outside dev mode (audit A2-2, DEC-97) ----
+@pytest.fixture
+def prod_secret(monkeypatch):
+    """Switch auth to DEV_MODE off with a chosen JWT_SECRET; only the auth module's settings change."""
+    from app.services import auth as auth_service
+
+    def use(secret: str):
+        s = get_settings().model_copy(update={"dev_mode": False, "jwt_secret": secret})
+        monkeypatch.setattr(auth_service, "get_settings", lambda: s)
+    return use
+
+
+@pytest.mark.parametrize(("secret", "reason"), [("", "jwt_secret_not_set"),
+                                                ("dev-only-change-me-not-a-secret-placeholder", "jwt_secret_not_set"),
+                                                ("short-secret", "jwt_secret_too_short")])
+def test_without_a_real_jwt_secret_ready_and_login_say_so(client, monkeypatch, prod_secret, caplog, secret, reason):
+    from app.services import auth as auth_service
+    token = auth_service.create_token(1)[0]                  # made while the dev secret is still allowed
+    monkeypatch.setattr(health_api.fc, "model_status", lambda: OK_MODEL)
+    prod_secret(secret)
+    r = client.get("/api/ready")
+    assert r.status_code == 503 and r.json()["checks"]["auth"]["reason"] == reason
+    assert "JWT_SECRET" in r.json()["checks"]["auth"]["fix"] and (secret == "" or secret not in r.text)
+    for path, body in (("/api/auth/otp/request", {"phone": PHONE}), ("/api/auth/otp/verify", {"phone": PHONE, "otp": "123456"})):
+        x = client.post(path, json=body)
+        assert x.status_code == 503 and x.json()["error"]["code"] == "auth_not_configured", x.text
+    x = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})     # reading a token is refused too
+    assert x.status_code == 503 and x.json()["error"]["code"] == "auth_not_configured"
+    with caplog.at_level(logging.ERROR, logger="sarthi.startup"):
+        assert startup_checks()["auth"]["ok"] is False
+    assert reason in caplog.text and "JWT_SECRET" in caplog.text
+
+
+def test_a_real_jwt_secret_outside_dev_mode_is_ready(client, monkeypatch, prod_secret):
+    monkeypatch.setattr(health_api.fc, "model_status", lambda: OK_MODEL)
+    prod_secret("x" * 40)
+    r = client.get("/api/ready")
+    assert r.status_code == 200 and r.json()["checks"]["auth"] == {"ok": True, "reason": None}
+    otp = client.post("/api/auth/otp/request", json={"phone": PHONE})
+    assert otp.status_code == 200 and otp.json()["sent"] is True

@@ -37,16 +37,20 @@ log = logging.getLogger("sarthi.startup")
 
 
 def startup_checks() -> dict:
-    """Clear errors in the log when the forecast model is missing or stale or the LLM key is missing. The API still
+    """Clear errors in the log when the forecast model is missing or stale, the LLM key is missing, or JWT_SECRET is
+    not set outside dev mode (DEC-97). The API still
     starts (other modules work); forecasts answer 503 model_not_ready and /api/ready says not_ready."""
     from app.api.health import llm_check
-    m, llm = fc.model_status(), llm_check()
+    from app.services.auth import auth_check
+    m, llm, au = fc.model_status(), llm_check(), auth_check()
     if not m["ok"]:
         log.error("forecast model not ready: %s. Run `make train` (forecasts answer 503 until then)", m["reason"])
     if not llm["ok"]:
         log.error("LLM provider %s has no LLM_API_KEY; chat will fail. Set it in .env or use LLM_PROVIDER=stub",
                   llm["provider"])
-    return {"model": m, "llm": llm}
+    if not au["ok"]:
+        log.error("login not configured: %s. %s (login answers 503 until then)", au["reason"], au["fix"])
+    return {"model": m, "llm": llm, "auth": au}
 
 
 @asynccontextmanager

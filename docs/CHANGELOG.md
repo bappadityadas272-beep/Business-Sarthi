@@ -2,6 +2,18 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-18: audit rounds 1 and 2 (docs/AUDIT.md), DEC-97
+
+- `docs/AUDIT.md`: each round on a fresh clone from GitHub (lint, mypy, train, test, eval, demo-e2e, secrets in
+  tree and history, bandit, pip-audit, `DEV_MODE=0` on a real process, docs drift, failure injection).
+- Round 1: README stack, badge and roadmap follow DECISIONS (README pictures still show concept-stage tools:
+  team item); AGENTS.md and SPEC.md status lines; `GET /api/consents/history` in the API list; chat tests for a bad
+  API key and an obeyed Hindi/Hinglish prompt injection.
+- Round 2 (**DEC-97**): with `DEV_MODE=0` and no real `JWT_SECRET`, `/api/ready` said ready while login gave 500.
+  Now `/api/ready` 503 with an `auth` check, login and token reads 503 `auth_not_configured`, a startup error, and
+  secrets under 32 characters count as not set. **Anyone running with DEV_MODE=0 must set a 32+ character
+  JWT_SECRET.** The two training leakage `assert`s are now explicit errors (kept under `python -O`).
+
 ## 2026-11-17: Q-05 privacy self-review, Q-02 evaluation report, Q-01 coverage, S-05 done
 
 - **Q-05** `docs/PRIVACY_CHECK.md`: 14 items from ARCHITECTURE section 11, each with the code and the test that

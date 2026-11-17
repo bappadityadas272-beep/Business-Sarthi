@@ -639,7 +639,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `GET /api/schemes/match?shop_id=` | Matched schemes with sources; optional `state`, `category` (repeatable), `age`, `need`, `language`, never stored (DEC-86, DEC-87) | C |
 | `POST /api/chat` | Chatbot (streams text) | C |
 | `POST /api/sos` | Guided SOS summary: alerts, EMI, last 30 days, rule-based checklist, `share_text` (DEC-83) | B |
-| `GET /api/health`, `GET /api/ready`, `GET /api/about` | Liveness; readiness (database tables, forecast model present and not stale, LLM configured) with 503 and reasons; prototype card (model card summary, `is_synthetic`, rule files' assumption flags) (DEC-90) | B |
+| `GET /api/health`, `GET /api/ready`, `GET /api/about` | Liveness; readiness (database tables, forecast model present and not stale, LLM configured, a real `JWT_SECRET` when `DEV_MODE` is off, DEC-97) with 503 and reasons; prototype card (model card summary, `is_synthetic`, rule files' assumption flags) (DEC-90) | B |
 | `POST /api/dev/advance-time`, `GET /api/dev/clock` | Demo only, behind `DEV_MODE=1`: move the app clock forward and run the daily job for each day passed (DEC-69). With DEV_MODE off: 404 like an unknown path and not in the docs (DEC-91) | B |
 | `DELETE /api/me/data` | Delete my data: every row of the owner, counts per table; backups untouched (DEC-84) | B |
 
@@ -1032,6 +1032,7 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-94 | 2026-11-17 | Chat redaction, **chosen by the human**: `privacy.redact_identifiers` replaces 10-digit Indian mobile numbers (with +91, 0, space or dash), 12-digit Aadhaar numbers and PAN numbers with `[redacted]` as the first step of `chat.answer`, before the router, the LLM, the answer cache and the database. Amounts, years and other numbers stay. | Q-05 found that a phone or Aadhaar typed into chat went to the hosted LLM and into `chat_turns`. Regex only: numbers in words or Devanagari digits and other identifiers are not caught (said in PRIVACY_CHECK). | Q-05 |
 | DEC-95 | 2026-11-17 | Third consent purpose `hosted_llm`, optional, **chosen by the human**: only with it may chat send the redacted question and the shop figures it needs to the hosted LLM provider. Without it the provider is never called (not even to route); rules route, and every answer is the code-made template with guard `no_llm_consent`. The demo driver and the chat evaluations give it for the fictional owners; the seed does not. Extends DEC-43. | Sending shop figures to a third-party provider is a separate purpose from storing them (DPDP spirit: purpose-specific consent). Chat still works without it, as when the provider is down (DEC-73). | Q-05 |
 | DEC-96 | 2026-11-17 | S-05 acceptance "CI runs on a pull request and turns green", **chosen by the human**: counted on the push run 44139472981 of `ca15816` (all steps green); the workflow also triggers on `pull_request`, but no pull request was opened (single-branch work this session). | Same workflow and job on both triggers; opening a throwaway PR only to tick the line adds nothing. | S-05 |
+| DEC-97 | 2026-11-18 | Missing JWT secret outside dev mode, **chosen by the human**: with `DEV_MODE` off and `JWT_SECRET` unset, the dev placeholder or under 32 characters (HS256 key of at least 256 bits, RFC 7518 section 3.2), `/api/ready` answers 503 with an `auth` check and its fix, startup logs a clear error, and every OTP and token call answers 503 `auth_not_configured` (checked before an OTP is made or used). The API still starts, like the missing model (DEC-90). | Audit round 2 (A2-2): `/api/ready` said ready while every login failed with a generic 500. Refusing to start would make `docker compose up` loop. Extends DEC-41. | B-12, audit |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -1043,6 +1044,18 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-18: audit rounds 1 and 2 (docs/AUDIT.md), DEC-97
+
+- `docs/AUDIT.md`: each round on a fresh clone from GitHub (lint, mypy, train, test, eval, demo-e2e, secrets in
+  tree and history, bandit, pip-audit, `DEV_MODE=0` on a real process, docs drift, failure injection).
+- Round 1: README stack, badge and roadmap follow DECISIONS (README pictures still show concept-stage tools:
+  team item); AGENTS.md and SPEC.md status lines; `GET /api/consents/history` in the API list; chat tests for a bad
+  API key and an obeyed Hindi/Hinglish prompt injection.
+- Round 2 (**DEC-97**): with `DEV_MODE=0` and no real `JWT_SECRET`, `/api/ready` said ready while login gave 500.
+  Now `/api/ready` 503 with an `auth` check, login and token reads 503 `auth_not_configured`, a startup error, and
+  secrets under 32 characters count as not set. **Anyone running with DEV_MODE=0 must set a 32+ character
+  JWT_SECRET.** The two training leakage `assert`s are now explicit errors (kept under `python -O`).
 
 ## 2026-11-17: Q-05 privacy self-review, Q-02 evaluation report, Q-01 coverage, S-05 done
 

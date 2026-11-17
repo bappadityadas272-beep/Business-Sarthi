@@ -22,7 +22,8 @@ On start, `backend/docker/start.sh` does the following:
 
 The API is up when `docker compose ps` shows `healthy`, or when <http://localhost:8000/api/health> answers. It is
 **ready** for the demo when <http://localhost:8000/api/ready> answers 200; a 503 lists what is missing (database
-not migrated, forecast model missing or stale, LLM key missing) and the command that fixes it.
+not migrated, forecast model missing or stale, LLM key missing, `JWT_SECRET` not set with `DEV_MODE` off) and the
+command or setting that fixes it.
 <http://localhost:8000/api/about> shows the model card (trained on SYNTHETIC data) and which rule files are
 assumptions.
 
@@ -101,6 +102,7 @@ back, so do not restore one after a deletion request without removing that owner
 | `/api/ready` 503, model `model_stale_config_changed` or `model_file_changed` | The SYNTHETIC config or the model file changed after training. Run `docker compose run --rm backend make train`, then restart. Forecasts answer 503 `model_not_ready` until then. |
 | 429 `rate_limited` | Too many OTP requests (3 per phone per 10 min, 20 per address per hour) or chat messages (20 per user per minute). Wait `retry_after` seconds. A restart clears the counters. |
 | 404 on `/api/dev/...` | `DEV_MODE` is off; the demo clock is switched off on purpose (DEC-91). |
+| 503 `auth_not_configured` on login, `/api/ready` auth `jwt_secret_not_set` or `jwt_secret_too_short` | `DEV_MODE` is off and `JWT_SECRET` is unset, the dev placeholder, or under 32 characters. Put a long random value in `.env` (for example `python -c "import secrets; print(secrets.token_urlsafe(48))"`) and restart (DEC-97). |
 | `port is already allocated` / `bind: address already in use` | Another program or a second clone is using port 8000. Stop it, or run `API_PORT=8001 docker compose up`, then open port 8001. |
 | The first start takes minutes, and `docker compose ps` shows `starting` | Normal: the SYNTHETIC data is generated and the model trained once. Watch with `docker compose logs -f backend`. |
 | `start.sh: not found` or `$'\r': command not found` | The script was checked out with Windows line endings. `.gitattributes` forces LF for `*.sh`; check the file out again with `git checkout -- backend/docker/start.sh`. |

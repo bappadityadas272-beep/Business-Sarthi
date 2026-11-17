@@ -2,7 +2,8 @@
 
 /api/health  the process answers (used by the compose healthcheck); no dependencies checked.
 /api/ready   200 only when the database answers with its tables, the forecast model is present and not stale, and
-             the LLM is configured (the offline stub counts as configured). 503 otherwise, with each check's reason.
+             the LLM is configured (the offline stub counts as configured), and login has a real JWT_SECRET outside
+             dev mode (DEC-97). 503 otherwise, with each check's reason.
              Never calls the LLM and never shows a key.
 /api/about   what this prototype is: the model card summary (is_synthetic) and the rule files' assumption flags.
 """
@@ -15,6 +16,7 @@ from app.api.deps import Db
 from app.config import get_settings
 from app.ml import forecast as fc
 from app.rules import FILES, get_rules
+from app.services import auth
 
 router = APIRouter(tags=["health"])
 VERSION = "0.1.0"
@@ -50,7 +52,8 @@ def ready(db: Db) -> JSONResponse:
     m = fc.model_status()
     checks = {"database": db_check(db),
               "model": {k: m[k] for k in ("ok", "reason", "version", "fix")},
-              "llm": llm_check()}
+              "llm": llm_check(),
+              "auth": auth.auth_check()}
     ok = all(c["ok"] for c in checks.values())
     return JSONResponse({"status": "ready" if ok else "not_ready", "checks": checks}, status_code=200 if ok else 503)
 

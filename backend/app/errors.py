@@ -29,6 +29,7 @@ MESSAGES = {
     "consent_required": "Please give consent before using this feature.",
     "shop_not_found": "Shop not found.",
     "model_not_ready": "The forecast model is not ready. An administrator must run `make train`.",
+    "auth_not_configured": "Login is not set up on this server yet. An administrator must set JWT_SECRET.",
 }
 BY_STATUS = {400: "bad_request", 401: "not_logged_in", 403: "forbidden", 404: "not_found",
              405: "method_not_allowed", 409: "conflict", 413: "request_too_large", 422: "invalid_input",
@@ -69,7 +70,14 @@ async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(envelope("internal_error", 500), status_code=500)
 
 
+async def _auth_not_configured(_: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(envelope("auth_not_configured", 503, {"reason": getattr(exc, "reason", None)}),
+                        status_code=503)
+
+
 def install(app: FastAPI) -> None:
+    from app.services.auth import AuthNotConfigured  # DEC-97
+    app.add_exception_handler(AuthNotConfigured, _auth_not_configured)
     app.add_exception_handler(StarletteHTTPException, _http)
     app.add_exception_handler(RequestValidationError, _validation)
     app.add_exception_handler(Exception, _unhandled)

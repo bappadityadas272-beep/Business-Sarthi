@@ -270,7 +270,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `GET /api/schemes/match?shop_id=` | Matched schemes with sources; optional `state`, `category` (repeatable), `age`, `need`, `language`, never stored (DEC-86, DEC-87) | C |
 | `POST /api/chat` | Chatbot (streams text) | C |
 | `POST /api/sos` | Guided SOS summary: alerts, EMI, last 30 days, rule-based checklist, `share_text` (DEC-83) | B |
-| `GET /api/health`, `GET /api/ready`, `GET /api/about` | Liveness; readiness (database tables, forecast model present and not stale, LLM configured) with 503 and reasons; prototype card (model card summary, `is_synthetic`, rule files' assumption flags) (DEC-90) | B |
+| `GET /api/health`, `GET /api/ready`, `GET /api/about` | Liveness; readiness (database tables, forecast model present and not stale, LLM configured, a real `JWT_SECRET` when `DEV_MODE` is off, DEC-97) with 503 and reasons; prototype card (model card summary, `is_synthetic`, rule files' assumption flags) (DEC-90) | B |
 | `POST /api/dev/advance-time`, `GET /api/dev/clock` | Demo only, behind `DEV_MODE=1`: move the app clock forward and run the daily job for each day passed (DEC-69). With DEV_MODE off: 404 like an unknown path and not in the docs (DEC-91) | B |
 | `DELETE /api/me/data` | Delete my data: every row of the owner, counts per table; backups untouched (DEC-84) | B |
 
