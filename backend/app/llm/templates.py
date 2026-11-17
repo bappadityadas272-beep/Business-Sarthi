@@ -1,4 +1,5 @@
-"""Template answers (C-05). Used for smalltalk, refusals, out-of-scope and schemes without a KB (no LLM call, DEC-77),
+"""Template answers (C-05). Used for smalltalk, refusals, out-of-scope and every scheme answer (no LLM call, DEC-77,
+DEC-87: scheme names, reasons and links come straight from the C-03 matcher),
 by the stub provider, and as the guard's fallback (C-06). Every number comes from a tool output; none is computed
 here beyond rounding for display.
 """
@@ -64,6 +65,10 @@ T = {
         "alert.dead_stock": "unsold stock worth {value}", "alert.emi_due": "EMI {emi} due on {due}",
         "alert.data_gap": "no log for {days} days", "alert.other": "{kind}",
         "alert.cleared": " (no longer active)",
+        "schemes.head": "These schemes may fit your shop. They come from our scheme list and were matched by fixed rules, not chosen by AI:",
+        "schemes.fit": "Why it may fit: {items}.", "schemes.missing": "Please tell us or confirm: {items}.",
+        "schemes.confirm": "Also check: {items}.", "schemes.source": "Official page: {url} (last checked {date}).",
+        "schemes.no_match": "None of the schemes in our list fit the details I have for your shop. Please check the official government page or ask your bank.",
         "schemes.none": "I do not have verified scheme information yet, so I cannot name a scheme. Please check the official government page or ask your bank.",
         "smalltalk": "Namaste! I am Business Sarthi. Ask me about your sales, profit, stock, alerts or how to use the app.",
         "out_of_scope": "Sorry, I can only help with your shop's numbers, stock, alerts and the app.",
@@ -97,6 +102,10 @@ T = {
         "alert.dead_stock": "na bikne wala maal {value} ka", "alert.emi_due": "EMI {emi} {due} ko deni hai",
         "alert.data_gap": "{days} din se hisaab nahi likha", "alert.other": "{kind}",
         "alert.cleared": " (ab active nahi)",
+        "schemes.head": "Yeh yojanayein aapki dukaan ke liye ho sakti hain. Yeh hamari yojana list se hain aur fixed niyamon se mili hain, AI ne nahi chuni:",
+        "schemes.fit": "Kyun fit ho sakti hai: {items}.", "schemes.missing": "Kripya batayein ya confirm karein: {items}.",
+        "schemes.confirm": "Yeh bhi check karein: {items}.", "schemes.source": "Official page: {url} (aakhri baar check: {date}).",
+        "schemes.no_match": "Hamari list ki koi yojana aapki dukaan ki jaankari se mel nahi khaati. Kripya sarkari official page dekhiye ya apne bank se poochhiye.",
         "schemes.none": "Mere paas abhi yojanaon ki sahi (verified) jaankari nahi hai, isliye main kisi yojana ka naam nahi bataunga. Kripya sarkari official page dekhiye ya apne bank se poochhiye.",
         "smalltalk": "Namaste! Main Business Sarthi hoon. Mujhse apni bikri, munafa, stock, alerts ya app ke baare mein poochhiye.",
         "out_of_scope": "Maaf kijiye, main sirf aapki dukaan ke hisaab, stock, alerts aur app mein madad kar sakta hoon.",
@@ -130,6 +139,10 @@ T = {
         "alert.dead_stock": "न बिकने वाला माल {value} का", "alert.emi_due": "किस्त {emi} {due} को देनी है",
         "alert.data_gap": "{days} दिन से हिसाब नहीं लिखा", "alert.other": "{kind}",
         "alert.cleared": " (अब सक्रिय नहीं)",
+        "schemes.head": "ये योजनाएँ आपकी दुकान के लिए हो सकती हैं। ये हमारी योजना सूची से हैं और तय नियमों से मिली हैं, AI ने नहीं चुनीं:",
+        "schemes.fit": "क्यों फिट हो सकती है: {items}।", "schemes.missing": "कृपया बताइए या पुष्टि कीजिए: {items}।",
+        "schemes.confirm": "यह भी जाँचिए: {items}।", "schemes.source": "आधिकारिक पेज: {url} (पिछली जाँच: {date})।",
+        "schemes.no_match": "हमारी सूची की कोई योजना आपकी दुकान की जानकारी से मेल नहीं खाती। कृपया सरकारी आधिकारिक पेज देखिए या अपने बैंक से पूछिए।",
         "schemes.none": "मेरे पास अभी योजनाओं की सही (सत्यापित) जानकारी नहीं है, इसलिए मैं किसी योजना का नाम नहीं बताऊँगा। कृपया सरकारी आधिकारिक पेज देखिए या अपने बैंक से पूछिए।",
         "smalltalk": "नमस्ते! मैं बिज़नेस सारथी हूँ। मुझसे अपनी बिक्री, मुनाफा, स्टॉक, अलर्ट या ऐप के बारे में पूछिए।",
         "out_of_scope": "माफ़ कीजिए, मैं सिर्फ़ आपकी दुकान के हिसाब, स्टॉक, अलर्ट और ऐप में मदद कर सकता हूँ।",
@@ -227,6 +240,32 @@ def _alerts(o: dict, lang: str) -> list[str]:
     return [t(lang, "alerts.head") + " " + "; ".join(parts) + end]
 
 
+def _full_day(iso: str, lang: str) -> str:
+    return f"{day(iso, lang)} {date.fromisoformat(iso).year}"
+
+
+def _schemes(o: dict, lang: str) -> str:
+    """C-03 / DEC-87: names, reasons and links straight from the matcher; no LLM rewrite."""
+    d = o["data"]
+    if not d.get("schemes"):
+        return t(lang, "schemes.none" if o.get("note") == "no_verified_source" else "schemes.no_match")
+    lines = [t(lang, "schemes.head")]
+    for i, s in enumerate(d["schemes"], 1):
+        parts = [f"{i}. {s['name']} [{s['id']}]: {s['summary']}"]
+        if s.get("label_text"):
+            parts.append(s["label_text"])
+        if s["why_it_may_fit"]:
+            parts.append(t(lang, "schemes.fit", items="; ".join(s["why_it_may_fit"])))
+        if s["missing_requirements"]:
+            parts.append(t(lang, "schemes.missing", items="; ".join(s["missing_requirements"])))
+        if s["please_confirm"]:
+            parts.append(t(lang, "schemes.confirm", items="; ".join(s["please_confirm"])))
+        parts.append(t(lang, "schemes.source", url=s["source_url"], date=_full_day(s["last_verified"], lang)))
+        lines.append(" ".join(parts))
+    lines.append(d["notice"])
+    return "\n".join(lines)
+
+
 RENDER = {"get_profit_summary": _profit, "get_forecast": _forecast, "get_latest_review": _review,
           "get_stock_advice": _stock, "get_alerts": _alerts}
 
@@ -238,7 +277,8 @@ def render(intent: str, tools: list[dict], language: str, refusal: str | None = 
     if intent == "smalltalk":
         return t(lang, "smalltalk")
     if intent == "schemes":
-        return t(lang, "schemes.none")              # DEC-74: no KB yet, so never a scheme name
+        found = [o for o in tools if o["tool"] == "match_schemes"]
+        return _schemes(found[0], lang) if found else t(lang, "schemes.none")
     if intent == "how_to":
         helps = [o for o in tools if o["tool"] == "app_help"]
         return helps[0]["data"]["text"][lang] if helps else t(lang, "unknown")

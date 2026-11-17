@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     llm_timeout_s: float = 20.0
     llm_max_retries: int = 3
     embed_model: str = "intfloat/multilingual-e5-small"
+    kb_path: str = (REPO_ROOT / "data" / "kb" / "schemes.json").as_posix()        # written by the team (D-03)
+    kb_index_dir: str = (BACKEND_DIR / "data" / "kb_index").as_posix()           # generated, git-ignored
+    kb_embedder: Literal["auto", "e5", "fallback"] = "auto"   # DEC-85: auto = e5 if installed, else fallback
     overpass_url: str = "https://overpass-api.de/api/interpreter"
     nominatim_url: str = "https://nominatim.openstreetmap.org"
     app_user_agent: str = "BusinessSarthi/0.1 (prototype)"

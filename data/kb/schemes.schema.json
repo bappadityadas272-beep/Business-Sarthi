@@ -1,0 +1,276 @@
+{
+  "$defs": {
+    "Eligibility": {
+      "additionalProperties": false,
+      "properties": {
+        "sectors": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "retail",
+                  "trading",
+                  "manufacturing",
+                  "services"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null = any sector",
+          "title": "Sectors"
+        },
+        "min_investment": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "INR, project cost or loan size; null = no minimum",
+          "title": "Min Investment"
+        },
+        "max_investment": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "INR; null = no maximum",
+          "title": "Max Investment"
+        },
+        "age_min": {
+          "anyOf": [
+            {
+              "maximum": 120,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Age Min"
+        },
+        "age_max": {
+          "anyOf": [
+            {
+              "maximum": 120,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Age Max"
+        },
+        "categories": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "general",
+                  "sc",
+                  "st",
+                  "obc",
+                  "women",
+                  "minority",
+                  "pwd",
+                  "ex_servicemen"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the owner must be in at least one; null = anyone",
+          "title": "Categories"
+        },
+        "states": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "state names; null = all of India",
+          "title": "States"
+        },
+        "other_requirements": {
+          "description": "shown as 'please confirm'",
+          "items": {
+            "type": "string"
+          },
+          "title": "Other Requirements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sectors",
+        "min_investment",
+        "max_investment",
+        "age_min",
+        "age_max",
+        "categories",
+        "states"
+      ],
+      "title": "Eligibility",
+      "type": "object"
+    },
+    "Scheme": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{1,40}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 2,
+          "title": "Name",
+          "type": "string"
+        },
+        "name_hi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Hi"
+        },
+        "type": {
+          "enum": [
+            "loan",
+            "subsidy",
+            "guarantee",
+            "registration"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "eligibility": {
+          "$ref": "#/$defs/Eligibility"
+        },
+        "benefit_summary": {
+          "maxLength": 1200,
+          "minLength": 10,
+          "title": "Benefit Summary",
+          "type": "string"
+        },
+        "benefit_summary_hi": {
+          "anyOf": [
+            {
+              "maxLength": 1200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Benefit Summary Hi"
+        },
+        "how_to_apply": {
+          "maxLength": 1200,
+          "minLength": 5,
+          "title": "How To Apply",
+          "type": "string"
+        },
+        "source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "last_verified": {
+          "format": "date",
+          "title": "Last Verified",
+          "type": "string"
+        },
+        "verified": {
+          "title": "Verified",
+          "type": "boolean"
+        },
+        "verified_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verified By"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "eligibility",
+        "benefit_summary",
+        "how_to_apply",
+        "source_url",
+        "last_verified",
+        "verified"
+      ],
+      "title": "Scheme",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "test_only": {
+      "default": false,
+      "title": "Test Only",
+      "type": "boolean"
+    },
+    "schemes": {
+      "items": {
+        "$ref": "#/$defs/Scheme"
+      },
+      "minItems": 1,
+      "title": "Schemes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "version",
+    "schemes"
+  ],
+  "title": "KnowledgeBase",
+  "type": "object",
+  "$comment": "Generated by `python -m app.rag.kb --schema` from backend/app/rag/kb.py. Do not edit by hand."
+}

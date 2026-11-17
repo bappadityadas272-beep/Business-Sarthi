@@ -266,7 +266,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `POST /api/shops/{id}/reviews/run` | Run review now (also scheduler) | M |
 | `GET /api/shops/{id}/reviews/latest` and `/reviews` | Read reviews | M |
 | `POST /api/shops/{id}/simulate` | Expansion simulator | M |
-| `GET /api/schemes/match?shop_id=` | Matched schemes with sources | C |
+| `GET /api/schemes/match?shop_id=` | Matched schemes with sources; optional `state`, `category` (repeatable), `age`, `need`, `language`, never stored (DEC-86, DEC-87) | C |
 | `POST /api/chat` | Chatbot (streams text) | C |
 | `POST /api/sos` | Guided SOS summary: alerts, EMI, last 30 days, rule-based checklist, `share_text` (DEC-83) | B |
 | `POST /api/dev/advance-time`, `GET /api/dev/clock` | Demo only, behind `DEV_MODE=1`: move the app clock forward and run the daily job for each day passed (DEC-69) | B |

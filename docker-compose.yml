@@ -4,7 +4,10 @@
 # The first start trains the forecast model and takes a few minutes; later starts take seconds.
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        EMBED: ${EMBED:-0}                     # 1 = real multilingual embeddings for schemes (DEC-85)
     working_dir: /repo                         # so `docker compose run/exec backend make <target>` finds the Makefile
     command: ["sh", "/repo/backend/docker/start.sh"]
     volumes:

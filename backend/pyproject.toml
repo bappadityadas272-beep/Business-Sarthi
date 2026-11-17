@@ -27,6 +27,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# DEC-85: real multilingual embeddings for the scheme index. Docker: EMBED=1 docker compose build
+# (installs CPU-only torch first). Without it the labelled fallback embedder is used.
+embed = [
+  "sentence-transformers==6.3.0",
+]
 dev = [
   "pytest==9.2.0",
   "ruff==0.17.5",

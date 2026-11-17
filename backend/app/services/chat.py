@@ -1,7 +1,7 @@
 """One chat turn (C-07): language -> route -> tools -> template -> LLM -> guard -> store. Code decides; the LLM only
 rephrases the template built from the same facts (DEC-06, DEC-78), and the guard checks the result (DEC-76).
 
-Smalltalk, refusals, out-of-scope and scheme answers without a KB are templates with no LLM call (DEC-77).
+Smalltalk, refusals, out-of-scope and every scheme answer are templates with no LLM call (DEC-77, DEC-87).
 Each turn is answered on its own; earlier turns are stored but not sent (DEC-77). Nothing here logs the question,
 the prompt or the answer: only intent, language and outcome kinds.
 """
@@ -47,14 +47,19 @@ def sources_of(tool_outputs: list[dict]) -> list[dict]:
                     "is_estimate": bool(o.get("is_estimate")), "note": o.get("note"),
                     "facts": [{"key": f["key"], "value": f["value"], "unit": f["unit"], "period": f.get("period"),
                                "source_label": src.get("label")} for f in o.get("facts", [])]})
+        if o.get("tool") == "match_schemes":                  # C-03: each scheme's official page and check date
+            out[-1]["links"] = [{"id": s["id"], "url": s["source_url"], "last_verified": s["last_verified"],
+                                 "verified": s["verified"]} for s in (o.get("data") or {}).get("schemes", [])]
     return out
 
 
 def run_tools(db: Session, user_id: int, shop: Shop, intent: str, wanted: list[tuple[str, dict]], question: str,
-              today: date) -> list[dict]:
+              today: date, lang: str = "en") -> list[dict]:
     if intent == "how_to":
         return [prompts.help_output(question)]
-    return [tools.run(db, user_id, shop.id, name, today=today, **args) for name, args in wanted]
+    extra = {"match_schemes": {"need": question, "language": lang}}       # C-03: rank by the question itself
+    return [tools.run(db, user_id, shop.id, name, today=today, **{**extra.get(name, {}), **args})
+            for name, args in wanted]
 
 
 def answer(db: Session, user_id: int, shop: Shop, question: str, *, client: llm.LLMClient | None = None,
@@ -64,7 +69,7 @@ def answer(db: Session, user_id: int, shop: Shop, question: str, *, client: llm.
     client = client or llm.get_client()
     lang = detect(question)
     r = route(question, client)
-    outs = run_tools(db, user_id, shop, r.intent, r.tools, question, today)
+    outs = run_tools(db, user_id, shop, r.intent, r.tools, question, today, lang)
     draft = templates.render(r.intent, outs, lang, r.refusal)
     turn = Turn(draft, lang, r.intent, "template", sources_of(outs), refusal=r.refusal, via=r.via)
 

@@ -54,6 +54,9 @@ MISSED. The demo needs `DEV_MODE=1` (the default), because it uses the mock-OTP 
 | Chatbot evaluation (the team's questions) | `docker compose run --rm backend make eval-chat` |
 | Live LLM check (uses the key in `.env`; prints no key) | `docker compose run --rm backend make chat-live` |
 | Retrain the model | `docker compose run --rm backend make train` |
+| Check the scheme KB (`data/kb/schemes.json`) | `docker compose run --rm backend make kb-check` |
+| Build the scheme index | `docker compose run --rm backend make kb-index` |
+| Use real multilingual embeddings (DEC-85, about 1 GB more) | `EMBED=1 docker compose build`, then `make kb-index` |
 | List every target | `docker compose run --rm backend make help` |
 
 On a host that has `make` (Linux, macOS, Git Bash with make), `make test` hands itself to Docker, so it is the same as

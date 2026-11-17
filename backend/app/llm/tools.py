@@ -22,6 +22,7 @@ from app.rules import get_rules
 from app.services import clock, consent
 from app.services import loans as loan_dates
 from app.services import review as review_service
+from app.services import schemes as scheme_service
 from app.services import stock as stock_service
 
 Period = Literal["this_month", "last_month", "last_30_days", "last_90_days"]
@@ -217,11 +218,16 @@ def get_profit_summary(db: Session, shop: Shop, today: date, period: str = "this
     return _out("get_profit_summary", shop, today, "daily_logs", data, facts, note=note)
 
 
-def match_schemes(db: Session, shop: Shop, today: date, profile: dict | None = None) -> dict:
-    """No verified scheme knowledge base exists yet (D-03 not built, DEC-74): never return a scheme without a
-    source URL and a last_verified date (AGENTS rule 3)."""
-    return _out("match_schemes", shop, today, "schemes_kb", {"schemes": [], "profile": profile or {}}, [],
-                note="no_verified_source")
+def match_schemes(db: Session, shop: Shop, today: date, profile: dict | None = None, need: str | None = None,
+                  language: str = "en") -> dict:
+    """C-03 matcher over the scheme KB (DEC-87). Each scheme carries its source URL and last_verified date; with no
+    valid KB the list is empty and the note is `no_verified_source` (AGENTS rule 3)."""
+    m = scheme_service.match(shop, today, {**(profile or {}), "need": need}, language)
+    data = {"schemes": m["schemes"], "profile": m["profile_used"], "notice": m["notice"], "kb": m["kb"],
+            "language": m["language"]}
+    note = "no_verified_source" if m["note"] in ("no_verified_source", "kb_invalid") else m["note"]
+    facts = [{"key": f"{s['id']}.last_verified", "value": s["last_verified"], "unit": "date"} for s in m["schemes"]]
+    return _out("match_schemes", shop, today, "schemes_kb", data, facts, note=note)
 
 
 TOOLS = {

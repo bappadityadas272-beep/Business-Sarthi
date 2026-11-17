@@ -2,6 +2,21 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-02 scheme KB loader and index, C-03 scheme matcher
+
+- **C-02 (DEC-85):** `app/rag/` loads and validates `data/kb/schemes.json`, embeds it and saves the vectors to
+  `backend/data/kb_index/` (git-ignored). `make kb-check` fails on a missing file, a missing or non-https
+  `source_url`, a missing or future `last_verified`, or bad eligibility fields. `make kb-index` builds the index.
+  The default image uses a labelled fallback embedder; `EMBED=1 docker compose build` adds multilingual-e5-small.
+- **C-03 (DEC-86, DEC-87):** `GET /api/schemes/match` and the chat tool `match_schemes` run hard eligibility checks,
+  then rank. Each result carries why it may fit, what to confirm, the source URL, `last_verified`, an `unverified`
+  label when needed, and the "check the official page" notice. Scheme chat answers are code templates (no LLM).
+- **No real scheme exists yet.** All tests use made-up TEST ONLY schemes in `backend/tests/fixtures/kb/`. The team
+  writes `data/kb/schemes.json` from official pages (D-03; format guide in `data/kb/README.md`), then runs
+  `make kb-check`. Until then chat says it has no verified scheme information, as before.
+- The 10/10 retrieval and 20/20 matching results are on fixtures and profiles written in the same session with
+  the fallback embedder. Re-measure on the real KB.
+
 ## 2026-11-17: B-10 SOS summary and B-11 delete-my-data
 
 - **B-10 (DEC-83):** `POST /api/sos` builds, on request, a shareable summary (open alerts, EMI status, last-30-days

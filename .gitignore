@@ -37,3 +37,6 @@ data/synthetic/out/
 Thumbs.db
 .vscode/
 .idea/
+
+# Scheme KB embedding index (python -m app.rag.build_index)
+backend/data/kb_index/

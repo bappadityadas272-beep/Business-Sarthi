@@ -4,7 +4,7 @@
 # Start and stop the API with `docker compose up` / `docker compose down` (docs/RUNBOOK.md).
 SYNTH := data/synthetic/out
 TARGETS := help synth train seed seed-if-missing migrate test lint eval eval-forecast eval-reforecast eval-stock \
-           eval-alerts eval-chat eval-chat-smoke chat-live demo backup restore reset-db
+           eval-alerts eval-chat eval-chat-smoke chat-live demo backup restore reset-db kb-check kb-index
 .PHONY: $(TARGETS)
 
 ifeq ($(wildcard /.dockerenv),)
@@ -25,6 +25,8 @@ help:
 	@echo "make eval-chat-smoke   the runner on eval/chat_eval_smoke.jsonl (a few labelled smoke questions)"
 	@echo "make chat-live   demo step 7 against the LLM provider set in .env (prints no key)"
 	@echo "make demo        scripts/demo_run.py: demo steps 1 to 8 over HTTP against a running API"
+	@echo "make kb-check    validate data/kb/schemes.json (source_url, last_verified, eligibility); fails if missing"
+	@echo "make kb-index    build the scheme embedding index (e5 if installed with EMBED=1, else the fallback)"
 	@echo "make backup      copy backend/data/sarthi.db to backend/data/backups/sarthi-<time>.db"
 	@echo "make restore FILE=backend/data/backups/<file>.db   put a backup back (stop the API first)"
 	@echo "make reset-db    delete the database, migrate and seed again (stop the API first)"
@@ -72,6 +74,12 @@ chat-live:
 
 demo:
 	cd backend && python ../scripts/demo_run.py
+
+kb-check:
+	cd backend && python -m app.rag.kb
+
+kb-index: kb-check
+	cd backend && python -m app.rag.build_index
 
 backup:
 	python scripts/db_tool.py backup
