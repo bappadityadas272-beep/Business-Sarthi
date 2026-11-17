@@ -177,7 +177,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | C-01 | `LLMClient` interface + providers (gemini, claude, stub) | F7 | P0 | S-02 | DONE | Stub returns deterministic text; provider chosen by env var | `app/llm/client.py`, `stub.py`, `gemini.py`, `claude.py` over httpx; retry 1/2/4 s with jitter, 20 s timeout, fallback, daily answer cache (DEC-75); 11 tests, network mocked. Live providers not yet run |
 | C-02 | KB loader + embedding index build | F4,F7 | P1 | D-03 | TODO | `python -m app.rag.build_index` writes index; top-1 retrieval correct on 10 test queries (Hindi and English) | |
 | C-03 | Scheme matcher (ML7) + endpoint | F4 | P1 | C-02, B-04 | TODO | 20 profile tests; top-3 contains expected scheme in at least 80% | |
-| C-04 | Chat tools (`get_forecast`, `get_latest_review`, ...) | F7 | P0 | M-05, M-08, M-07, M-09 | TODO | Each tool returns structured JSON for the demo shop | |
+| C-04 | Chat tools (`get_forecast`, `get_latest_review`, ...) | F7 | P0 | M-05, M-08, M-07, M-09 | DONE | Each tool returns structured JSON for the demo shop | `app/llm/tools.py`: six tools; each output has `source` {id,label}, `as_of`, `note` and flat `facts` {key,value,unit,period}; profit periods and EMI shown apart per DEC-77; `match_schemes` returns `[]` with `no_verified_source` (DEC-74); `run()` checks owner and consent (one `shop_not_found` error); 8 tests on both demo shops |
 | C-05 | Router + prompt builder + language handling | F7 | P0 | C-01, C-04 | TODO | Intent routing correct on 20 sample questions; reply language matches | |
 | C-06 | Guard (number and citation check) + fallback template | F7 | P0 | C-05 | TODO | Injected wrong number is caught and replaced by the template | |
 | C-07 | `POST /api/chat` with streaming | F7 | P0 | C-06, C-03, B-03 | TODO | Demo script step 7 works with stub and with a real provider | |
@@ -997,6 +997,18 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: C-04 chat tools
+
+- **Checkpoint:** C-04 DONE. Acceptance: every tool returns strict JSON (`allow_nan=False`) with units and a source
+  label for both demo shops, and a user cannot read another user's shop (`tests/test_chat_tools.py`, 8 tests).
+- `backend/app/llm/tools.py`: `get_forecast`, `get_latest_review`, `get_stock_advice`, `get_alerts`,
+  `get_profit_summary(period)`, `match_schemes(profile)`. Entry point is `run(db, user_id, shop_id, name, **args)`,
+  which loads the shop only for its owner with active shop-data consent; otherwise it raises `ToolAccessDenied`
+  (`shop_not_found`).
+- `facts` is the list the C-06 guard checks against. Profit is logged sales minus purchases minus expenses, with
+  nothing extrapolated. EMI is shown separately (`monthly_emi`, `emi_due_in_period`, `emi_subtracted: false`).
+- `match_schemes` always returns an empty list with `note: no_verified_source` until D-03 builds the KB (DEC-74).
 
 ## 2026-11-17: C-01 LLM client
 

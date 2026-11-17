@@ -2,6 +2,18 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-04 chat tools
+
+- **Checkpoint:** C-04 DONE. Acceptance: every tool returns strict JSON (`allow_nan=False`) with units and a source
+  label for both demo shops, and a user cannot read another user's shop (`tests/test_chat_tools.py`, 8 tests).
+- `backend/app/llm/tools.py`: `get_forecast`, `get_latest_review`, `get_stock_advice`, `get_alerts`,
+  `get_profit_summary(period)`, `match_schemes(profile)`. Entry point is `run(db, user_id, shop_id, name, **args)`,
+  which loads the shop only for its owner with active shop-data consent; otherwise it raises `ToolAccessDenied`
+  (`shop_not_found`).
+- `facts` is the list the C-06 guard checks against. Profit is logged sales minus purchases minus expenses, with
+  nothing extrapolated. EMI is shown separately (`monthly_emi`, `emi_due_in_period`, `emi_subtracted: false`).
+- `match_schemes` always returns an empty list with `note: no_verified_source` until D-03 builds the KB (DEC-74).
+
 ## 2026-11-17: C-01 LLM client
 
 - **Checkpoint:** C-01 DONE. Acceptance: the stub is deterministic, the provider is chosen by `LLM_PROVIDER`, a
