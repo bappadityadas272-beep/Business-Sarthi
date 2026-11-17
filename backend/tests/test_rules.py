@@ -50,6 +50,9 @@ def _broken(tmp_path, name, mutate):
     ("expansion.yaml", lambda d: d["options"]["extend_hours"]["uplift"].update(low=0.5)),
     ("expansion.yaml", lambda d: d.update(unknown_key=1)),                      # extra keys forbidden
     ("investment_split.yaml", lambda d: d["remainder_split"].update(stock=0.9)),  # sum != 1
+    ("pricing.yaml", lambda d: d["target_margins"].pop("dairy")),            # every category needed
+    ("pricing.yaml", lambda d: d["target_margins"].update(staples=1.2)),       # not a margin
+    ("expansion.yaml", lambda d: d.pop("months_ahead")),                       # DEC-88 field required
 ])
 def test_invalid_files_are_rejected(tmp_path, name, mutate):
     with pytest.raises(RuleFileError, match=name):

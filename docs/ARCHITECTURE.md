@@ -265,6 +265,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `PATCH /api/shops/{id}` | Set or clear `opening_cash` (DEC-65) | B |
 | `POST /api/shops/{id}/reviews/run` | Run review now (also scheduler) | M |
 | `GET /api/shops/{id}/reviews/latest` and `/reviews` | Read reviews | M |
+| `GET /api/shops/{id}/pricing` | Pricing helper: margin per category against the assumed target, flags, price needed per item; nothing stored (DEC-89) | M |
 | `POST /api/shops/{id}/simulate` | Expansion simulator: payback range and P(payback < 12 months) per option, all ranges assumptions; body `{options?}`; nothing stored (DEC-88) | M |
 | `GET /api/schemes/match?shop_id=` | Matched schemes with sources; optional `state`, `category` (repeatable), `age`, `need`, `language`, never stored (DEC-86, DEC-87) | C |
 | `POST /api/chat` | Chatbot (streams text) | C |

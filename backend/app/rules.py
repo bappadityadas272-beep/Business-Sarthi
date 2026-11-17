@@ -356,6 +356,21 @@ class ForecastAssumptions(_Header):
                                   "city_tier", "monthly_rent", "staff_count"]] = Field(min_length=1)
 
 
+# ---- pricing.yaml ----
+class Pricing(_Header):
+    window_days: int = Field(ge=7)
+    target_margins: dict[str, float]
+
+    @field_validator("target_margins")
+    @classmethod
+    def _every_category(cls, v):
+        if set(v) != set(CATEGORIES):
+            raise ValueError(f"target_margins must list exactly {CATEGORIES}")
+        if any(not 0 < x < 1 for x in v.values()):
+            raise ValueError("target margins must be between 0 and 1")
+        return v
+
+
 # ---- bundle ----
 FILES: dict[str, type[_Header]] = {
     "investment_split.yaml": InvestmentSplit,
@@ -369,6 +384,7 @@ FILES: dict[str, type[_Header]] = {
     "expansion.yaml": Expansion,
     "osm_tags.yaml": OsmTags,
     "forecast_assumptions.yaml": ForecastAssumptions,
+    "pricing.yaml": Pricing,
 }
 
 
@@ -384,6 +400,7 @@ class Rules(_Strict):
     investment: InvestmentSplit
     osm: OsmTags
     forecast: ForecastAssumptions
+    pricing: Pricing
 
 
 def load_file(path: Path, model: type[_Header]) -> _Header:
@@ -408,7 +425,7 @@ def load_rules(rules_dir: Path = RULES_DIR) -> Rules:
         actions=f["actions.yaml"], location=f["location_weights.yaml"],
         product_mix=f["product_mix.yaml"], expansion=f["expansion.yaml"],
         investment=f["investment_split.yaml"], osm=f["osm_tags.yaml"],
-        forecast=f["forecast_assumptions.yaml"],
+        forecast=f["forecast_assumptions.yaml"], pricing=f["pricing.yaml"],
     )
 
 

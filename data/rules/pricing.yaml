@@ -1,0 +1,13 @@
+# ML10 pricing helper (ML_PLAN section 11, DEC-89). Target gross margin per category.
+# ALL TARGETS ARE ASSUMPTIONS: the midpoint of each category's assumed margin range in data/synthetic/config.yaml
+# (staples 8-12%, dairy 6-10%, snacks and beverages 15-22%, household 12-18%, personal care 15-20%). Not measured.
+version: 1
+source: "proposed; midpoints of the assumed synthetic margin ranges (DEC-89)"
+assumption: true
+window_days: 90                 # margins from the last 90 days of item sales
+target_margins:
+  staples: 0.10
+  dairy: 0.08
+  snacks_beverages: 0.185
+  household: 0.15
+  personal_care: 0.175

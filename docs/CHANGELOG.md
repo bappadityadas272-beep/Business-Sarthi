@@ -2,6 +2,14 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: M-11 pricing helper
+
+- `GET /api/shops/{id}/pricing` (`app/ml/pricing.py`, DEC-89): margin per category from the last 90 days of item
+  sales against a target, flags the categories below it, gives the average price rise needed and a target price for
+  each item below target, and always says demand may react.
+- New rule file `data/rules/pricing.yaml`: the targets are the midpoints of the assumed synthetic margin ranges,
+  `assumption: true`. They are not measured from real shops.
+
 ## 2026-11-17: M-10 expansion simulator
 
 - `POST /api/shops/{id}/simulate` (`app/ml/simulate.py`, DEC-88): for each option in `data/rules/expansion.yaml`,
