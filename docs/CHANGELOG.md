@@ -2,6 +2,19 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: D-05 follow-up: deeper demo dip; host venv re-checked
+
+- **D-05 (still DONE):** Ramesh Kirana's demo dip deepened from 40% to 50% (DEC-72), seed data only; alert rules
+  and training shops unchanged. Measured with the trained model at six seed dates: sales-dip alert on 4 days (replay
+  days 41 to 44), Ramesh `pivot`, Sunita `grow`. `tests/test_seed.py` now also checks the sales-dip alert. Demo
+  script step 5 updated. Run `make synth` before `make seed` after pulling (the config changed).
+- DEC-71's cash figures (lowest -7,171, 5,077 on the seed day) were measured with the 40% dip and were not
+  re-measured; with the deeper dip cash is lower. The EMI alert still shows (test passes).
+- **Host venv (no Docker), re-checked 2026-11-17, not possible:** Windows Smart App Control is on and still blocks
+  the compiled DLLs (numpy `mtrand`, SQLAlchemy `_util_cy`), so pandas, scikit-learn, LightGBM, statsmodels and the
+  app cannot import; numpy core and pydantic-core now load. DEC-20 (Docker) stays. `backend/.venv` is an empty
+  folder made by the compose volume that hides host venvs.
+
 ## 2026-11-17: D-05 demo seed (two synthetic demo shops)
 
 - **Checkpoint:** D-05 DONE. Acceptance: `make seed` creates the demo users and shops with the pre-loaded logs

@@ -105,7 +105,7 @@ demos:
     staff_wage: 10000
     budget: 300000
     performance: 1.0
-    dip: {start: "2026-09-05", end: "2026-10-31", mult: 0.60}     # never recovers in the period (DEC-70)
+    dip: {start: "2026-09-05", end: "2026-10-31", mult: 0.50}     # 50% dip, never recovers in the period (DEC-70, DEC-72)
     loan: {principal: 200000, emi: 7500, due_day: 5, tenure_months: 36}   # tenure: hand-set demo value
   - name: "Sunita General Store"     # story: healthy shop, expected review = grow
     phone: "+919000000002"

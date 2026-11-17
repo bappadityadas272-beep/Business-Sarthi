@@ -333,8 +333,8 @@ Seed the two SYNTHETIC demo shops with `make seed` (after `make synth` and `make
 1. Log in with mock OTP, pick Hindi, give consent.
 2. Enter a kirana idea at a pin in a demo locality with budget 5 lakh and rent 15,000.
 3. Show location score, starter mix, forecast range chart, break-even and payback range, investment split.
-4. Jump into the pre-loaded 88 days of logs (Ramesh: sales fall in month 2 and stay low, and an EMI crunch).
-5. Show dashboard alerts (low stock, dead stock, EMI due soon). The seeded data raises no sales-dip alert yet (see CHANGELOG 2026-11-17, D-05).
+4. Jump into the pre-loaded 88 days of logs (Ramesh: sales fall by half in month 2 and stay low, and an EMI crunch).
+5. Show dashboard alerts: sales dip (Ramesh, raised in month 2 and shown as no longer active, still open until the owner resolves it), low stock, dead stock, EMI due soon (DEC-72).
 6. Press "advance time" (2 days), open the 3-month review and show the decision with reasons (Ramesh: pivot; Sunita: grow).
 7. Ask the chatbot in Hindi: "Mujhe kaunsi scheme milegi?" and show cited sources, then "Is mahine ka profit kitna hai?" and show the tool-based answer.
 8. Open the expansion simulator and show payback range.

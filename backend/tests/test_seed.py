@@ -59,7 +59,9 @@ def test_demo_login_sees_only_its_own_shop_and_the_replayed_alerts(seeded, clien
     assert logs.status_code == 200
     alerts = client.get(f"/api/shops/{shop_id}/alerts", headers=ramesh).json()
     kinds = {a["kind"] for a in alerts}
-    assert {"low_stock", "dead_stock", "emi_due"} <= kinds                             # demo script step 5
+    assert {"low_stock", "dead_stock", "emi_due", "sales_dip"} <= kinds                # demo script step 5
+    dip = [a for a in alerts if a["kind"] == "sales_dip"]
+    assert len(dip) == 1 and dip[0]["still_active"] is False      # fired in month 2 (DEC-72), kept open (DEC-67b)
     live_emi = [a for a in alerts if a["kind"] == "emi_due" and a["cleared_on"] is None]
     assert len(live_emi) == 1 and 0 <= live_emi[0]["params"]["days_to_due"] <= 5
 
