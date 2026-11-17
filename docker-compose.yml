@@ -5,7 +5,7 @@
 services:
   backend:
     build: ./backend
-    working_dir: /repo/backend
+    working_dir: /repo                         # so `docker compose run/exec backend make <target>` finds the Makefile
     command: ["sh", "/repo/backend/docker/start.sh"]
     volumes:
       - .:/repo

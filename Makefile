@@ -10,7 +10,7 @@ TARGETS := help synth train seed seed-if-missing migrate test lint eval eval-for
 ifeq ($(wildcard /.dockerenv),)
 # ---- host: run the same target in the container --------------------------------------------------------------
 $(TARGETS):
-	MSYS_NO_PATHCONV=1 docker compose run --rm -w /repo backend make $@ $(if $(FILE),FILE=$(FILE))
+	MSYS_NO_PATHCONV=1 docker compose run --rm backend make $@ $(if $(FILE),FILE=$(FILE))
 else
 # ---- container -----------------------------------------------------------------------------------------------
 help:
