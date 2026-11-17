@@ -2,6 +2,20 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-01 LLM client
+
+- **Checkpoint:** C-01 DONE. Acceptance: the stub is deterministic, the provider is chosen by `LLM_PROVIDER`, a
+  simulated 429 retries and then falls back, and no key (or prompt or phone number) appears in the logs
+  (`tests/test_llm_client.py`, 11 tests, network mocked with `httpx.MockTransport`).
+- `backend/app/llm/client.py`: `LLMClient` (`generate`, `stream`), `get_client()`, `RetryPolicy`, `HttpProvider`,
+  `generate_or_fallback()`, `AnswerCache` (per shop per app day). Providers: `stub.py` (no network; answers from the
+  facts block with the template text once C-05 adds `templates.py`; `StubClient(reply=...)` forces an answer),
+  `gemini.py` (REST `generateContent`, key in `x-goog-api-key`), `claude.py` (REST `/v1/messages`).
+- Decisions: DEC-53 to DEC-71 confirmed by the human; new DEC-73 (guard first, then stream), DEC-74 (C-07 before the
+  scheme KB), DEC-75 (client settings), DEC-76 (guard plan), DEC-77 (chat behaviour).
+- New settings `LLM_MODEL`, `LLM_TIMEOUT_S`, `LLM_MAX_RETRIES` (`.env.example`). Default models `gemini-2.5-flash`
+  and `claude-haiku-5-5` are **not verified against a live key yet** (C-07 does that).
+
 ## 2026-11-17: D-05 follow-up: deeper demo dip; host venv re-checked
 
 - **D-05 (still DONE):** Ramesh Kirana's demo dip deepened from 40% to 50% (DEC-72), seed data only; alert rules
