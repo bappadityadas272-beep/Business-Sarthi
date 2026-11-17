@@ -121,7 +121,8 @@ def step3(api: Api, ctx: dict) -> str:
         raise Step("FAIL", "GET /shops/{id}/location-score is not built yet (M-02)")
     need(r.status_code == 200, f"location-score -> HTTP {r.status_code}")
     loc = r.json()
-    need("score" in loc and loc.get("starter_mix"), "location score or starter mix missing")
+    need("score" in loc and loc.get("starter_mix", {}).get("lines"), "location score or starter mix missing")
+    need(loc["weights_are_assumptions"] is True, "location weights not labelled as assumptions")
     fc = api.call("POST", f"/shops/{sid}/forecast", json={}).json()
     m = fc["months"]
     need(len(m) >= 3 and all(x["p10"] <= x["p50"] <= x["p90"] for x in m), "forecast months are not ordered ranges")
@@ -129,7 +130,8 @@ def step3(api: Api, ctx: dict) -> str:
     need(fc["break_even"]["revenue_monthly"] > 0 and "typical_months" in fc["payback"], "break-even or payback missing")
     need(fc["investment_split"]["budget"] == 500000, "investment split does not use the budget")
     pb = fc["payback"]
-    return (f"location score {loc['score']}, {len(loc['starter_mix'])} starter-mix lines; month 1 sales "
+    return (f"location score {loc['score']}/100 ({loc['location']['source']} counts), "
+            f"{len(loc['starter_mix']['lines'])} starter-mix lines; month 1 sales "
             f"{m[0]['p10']:,}-{m[0]['p90']:,} (P50 {m[0]['p50']:,}); payback {pb['fastest_months']}/"
             f"{pb['typical_months']}/{pb['slowest_months']} months (fast/typical/slow)")
 

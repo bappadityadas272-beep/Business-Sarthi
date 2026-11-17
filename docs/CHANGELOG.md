@@ -2,6 +2,23 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: M-02 location score and starter mix; guard rule for owner-typed numbers documented
+
+- **M-02 DONE.** `app/ml/location.py` scores a pin for the shop type and suggests a starter product mix.
+  - The score is a transparent weighted score over the nearby counts (DEC-08); the starter mix is the base shares nudged by the nearby profiles.
+  - Endpoint: `GET /api/shops/{id}/location-score` (owner only, consent required). It returns:
+    - the score (0-100);
+    - the top 3 positive and negative drivers, in points;
+    - the counts, with their source (`mock` by default, so `is_measured: false`);
+    - the starter mix.
+  - Weights and shares are the DEC-21 assumptions, labelled `weights_are_assumptions` and `is_assumption`.
+  - Not done: the ML_PLAN section 3 "manual sanity check on 5 real localities". It needs `OSM_MODE=live` and a person to judge the result.
+- **FLAG 4.** The guard rule that "a number typed by the owner counts as plain only" is now documented in ARCHITECTURE §5.1. New tests in `test_guard.py` cover Hindi, Hinglish and English variants: money, percent, a bare "5 lakh" and plain numbers that may be repeated. No guard code changed.
+- **Fresh-clone check (FLAG 1).**
+  - A clean clone with `.env` copied from `.env.example` starts with `docker compose up`.
+  - The demo driver then gives 5 PASS, 2 FAIL (M-02 and M-10, not built at that commit) and 1 MISSED (the scheme KB).
+  - The check found that `docker compose exec/run backend make ...` failed because the service started in `/repo/backend`. Fixed: the working dir is now `/repo`.
+
 ## 2026-11-17: one way to run the backend, demo driver (DEC-82)
 
 - **`docker compose up` is the one supported way to run the backend.** `backend/docker/start.sh` runs, in order:

@@ -138,3 +138,34 @@ class ReforecastOut(BaseModel):
     observed_error: float | None
     interval_rescale: float
     confidence: Confidence
+
+class LocationDriver(BaseModel):
+    feature: Literal["residential", "schools", "transit", "banks_atms", "competitors"]
+    count: int
+    points: float                          # share of the 0-100 score; negative for competitors beyond the free count
+    direction: Literal["up", "down"]
+
+
+class MixLine(BaseModel):
+    category: str
+    share: float                           # of the opening stock budget
+
+
+class StarterMix(BaseModel):
+    lines: list[MixLine]
+    profiles_applied: list[dict]
+    suggest_items: list[str]
+    is_assumption: bool = True
+
+
+class LocationScoreOut(BaseModel):
+    """ML1 (M-02): a transparent weighted score, not a prediction of success. Weights are assumptions (DEC-21)."""
+    shop_id: int
+    score: int                             # 0-100
+    positive_drivers: list[LocationDriver]
+    negative_drivers: list[LocationDriver]
+    location: LocationOut
+    starter_mix: StarterMix
+    weights_version: int
+    weights_are_assumptions: bool = True
+    is_estimate: bool = True

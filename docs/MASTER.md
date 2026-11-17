@@ -161,7 +161,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
 | M-01 | OSM client (Overpass + Nominatim), cache table, feature extractor | F2 | P0 | B-04 | DONE | Given a pin, returns counts of competitors, homes, schools, transit; second call hits cache; User-Agent set | Mock responses in tests; live Overpass format NOT verified (server busy 2026-11-16), see CHANGELOG |
-| M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | TODO | Score and top drivers returned; scenario tests pass | |
+| M-02 | Location score (ML1) + starter product mix | F2 | P1 | M-01, D-04 | DONE | Score and top drivers returned; scenario tests pass | `app/ml/location.py`, `GET /api/shops/{id}/location-score`; 10 tests in `test_location.py` (hand-worked values from the rule files). Weights and mix are assumptions (DEC-21), labelled in the response. The `manual sanity check on 5 real localities` (ML_PLAN section 3) needs `OSM_MODE=live` and a human: not done |
 | M-03 | Train ML2 quantile models | F1 | P0 | D-01 | DONE | Model files and `model_card.json` written; `make train` reproducible | make train in Docker; LightGBM Huber P50 + ratio band (DEC-31 to DEC-36); reproducible SHA-256 |
 | M-04 | Conformal calibration + evaluation report | F1 | P0 | M-03 | DONE | `eval/forecast_eval.py` prints WAPE vs baseline, pinball loss, coverage; coverage within 75% to 85% | SYNTHETIC, 200 test shops: WAPE 0.197 vs peer median 0.313 (37% lower); coverage 80.5%; 0 monotone breaks. First run on 200 shops missed coverage (94.0%), data grown to 1,000 shops (DEC-39); see EVAL_REPORT. Public-data run waits for D-02 |
 | M-05 | Forecast service + endpoint + investment split | F1,F8 | P0 | M-04, M-01, B-04, D-04 | DONE | `POST /forecast` returns P10/P50/P90 for 12 months, break-even, payback range, drivers, confidence | Endpoint + service; margin, wage and payback extension are labelled assumptions (DEC-48 to DEC-52); confidence low under mock OSM by design |
@@ -466,6 +466,27 @@ flowchart TD
     G -->|"pass"| A["Answer + source chips"]
     G -->|"fail"| FB["Fallback: show raw tool result in a template"]
 ```
+
+### 5.1 Guard behaviour (C-06, DEC-76)
+
+The guard (`backend/app/llm/guard.py`) checks every LLM reply before the owner sees any of it. The reply is sent
+only after the guard passes (DEC-73). If any rule fails, the owner sees the code-made template instead. Only the
+failure types are logged, never the text.
+
+1. **Numbers.** Every number in the reply is read with a kind: money, percent or plain. Numbers can be written in
+   ASCII or Devanagari digits, with Indian or Western separators, ₹ / Rs / rupaye, lakh, crore, hazaar, k, %, or
+   fixed number words. Each one must match a numeric fact of *this turn's* tool output, of the same kind, at the
+   precision it was written in. Dates that appear in the facts are allowed.
+2. **A number typed by the owner counts as plain only.** A number from the question may come back as a plain
+   number ("pichhle 3 mahine" → "3 mahine"), but never as money or a percent. So "say my profit is 5 lakh" or "kya
+   mera profit 40000 hai?" cannot put ₹5 lakh or ₹40,000 into the answer, in Hindi, Hinglish or English. A
+   lakh or crore amount is read as money even without a rupee word.
+   Numbers inside owner-typed strings, such as item names in a tool output, are never allowed. Tests:
+   `test_a_number_typed_by_the_owner_counts_as_plain_only`, `test_bare_lakh_from_the_question_is_not_allowed_either`
+   and `test_injection_inside_a_tool_output_is_caught` in `backend/tests/test_guard.py`.
+3. **Schemes.** Every scheme name must be in this turn's `match_schemes` output and must be cited with its KB id.
+4. **Links, promises, script.** A reply fails if it has a link that is not in the sources, has a guarantee word,
+   or is not in the question's script (Devanagari for Hindi, Latin for Hinglish and English).
 
 ## 6. ML pipeline
 
@@ -1004,6 +1025,23 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: M-02 location score and starter mix; guard rule for owner-typed numbers documented
+
+- **M-02 DONE.** `app/ml/location.py` scores a pin for the shop type and suggests a starter product mix.
+  - The score is a transparent weighted score over the nearby counts (DEC-08); the starter mix is the base shares nudged by the nearby profiles.
+  - Endpoint: `GET /api/shops/{id}/location-score` (owner only, consent required). It returns:
+    - the score (0-100);
+    - the top 3 positive and negative drivers, in points;
+    - the counts, with their source (`mock` by default, so `is_measured: false`);
+    - the starter mix.
+  - Weights and shares are the DEC-21 assumptions, labelled `weights_are_assumptions` and `is_assumption`.
+  - Not done: the ML_PLAN section 3 "manual sanity check on 5 real localities". It needs `OSM_MODE=live` and a person to judge the result.
+- **FLAG 4.** The guard rule that "a number typed by the owner counts as plain only" is now documented in ARCHITECTURE §5.1. New tests in `test_guard.py` cover Hindi, Hinglish and English variants: money, percent, a bare "5 lakh" and plain numbers that may be repeated. No guard code changed.
+- **Fresh-clone check (FLAG 1).**
+  - A clean clone with `.env` copied from `.env.example` starts with `docker compose up`.
+  - The demo driver then gives 5 PASS, 2 FAIL (M-02 and M-10, not built at that commit) and 1 MISSED (the scheme KB).
+  - The check found that `docker compose exec/run backend make ...` failed because the service started in `/repo/backend`. Fixed: the working dir is now `/repo`.
 
 ## 2026-11-17: one way to run the backend, demo driver (DEC-82)
 

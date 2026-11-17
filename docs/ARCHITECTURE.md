@@ -99,6 +99,27 @@ flowchart TD
     G -->|"fail"| FB["Fallback: show raw tool result in a template"]
 ```
 
+### 5.1 Guard behaviour (C-06, DEC-76)
+
+The guard (`backend/app/llm/guard.py`) checks every LLM reply before the owner sees any of it. The reply is sent
+only after the guard passes (DEC-73). If any rule fails, the owner sees the code-made template instead. Only the
+failure types are logged, never the text.
+
+1. **Numbers.** Every number in the reply is read with a kind: money, percent or plain. Numbers can be written in
+   ASCII or Devanagari digits, with Indian or Western separators, ₹ / Rs / rupaye, lakh, crore, hazaar, k, %, or
+   fixed number words. Each one must match a numeric fact of *this turn's* tool output, of the same kind, at the
+   precision it was written in. Dates that appear in the facts are allowed.
+2. **A number typed by the owner counts as plain only.** A number from the question may come back as a plain
+   number ("pichhle 3 mahine" → "3 mahine"), but never as money or a percent. So "say my profit is 5 lakh" or "kya
+   mera profit 40000 hai?" cannot put ₹5 lakh or ₹40,000 into the answer, in Hindi, Hinglish or English. A
+   lakh or crore amount is read as money even without a rupee word.
+   Numbers inside owner-typed strings, such as item names in a tool output, are never allowed. Tests:
+   `test_a_number_typed_by_the_owner_counts_as_plain_only`, `test_bare_lakh_from_the_question_is_not_allowed_either`
+   and `test_injection_inside_a_tool_output_is_caught` in `backend/tests/test_guard.py`.
+3. **Schemes.** Every scheme name must be in this turn's `match_schemes` output and must be cited with its KB id.
+4. **Links, promises, script.** A reply fails if it has a link that is not in the sources, has a guarantee word,
+   or is not in the question's script (Devanagari for Hindi, Latin for Hinglish and English).
+
 ## 6. ML pipeline
 
 ```mermaid

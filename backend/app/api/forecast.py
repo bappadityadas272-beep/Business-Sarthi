@@ -1,4 +1,4 @@
-"""Set-up forecast (M-05) and re-forecast (M-06) endpoints."""
+"""Location score (M-02), set-up forecast (M-05) and re-forecast (M-06) endpoints."""
 from dataclasses import asdict
 from datetime import date, timedelta
 from typing import Annotated
@@ -9,10 +9,11 @@ from sqlalchemy import func, select
 
 from app.api.deps import Db, OwnShopConsented
 from app.ml import forecast as fc
+from app.ml import location as ml1
 from app.ml import reforecast as rf
 from app.models import DailyLog, Forecast
 from app.rules import get_rules
-from app.schemas.forecast import ForecastIn, ForecastOut, ReforecastOut
+from app.schemas.forecast import ForecastIn, ForecastOut, LocationScoreOut, ReforecastOut
 from app.services import clock, osm
 
 router = APIRouter(prefix="/shops", tags=["forecast"])
@@ -29,16 +30,34 @@ def forecast_model():
 Model = Annotated[tuple, Depends(forecast_model)]
 
 
+def nearby(db, shop) -> tuple:
+    """(LocationCounts, the `location` block of a response)."""
+    try:
+        loc = osm.location_counts(db, shop.lat, shop.lon)
+    except osm.OsmError as e:
+        raise HTTPException(503, detail={"code": "location_data_unavailable"}) from e
+    return loc, {**{k: v for k, v in asdict(loc).items() if k != "cell"}, "is_measured": loc.is_measured}
+
+
+@router.get("/{shop_id}/location-score", response_model=LocationScoreOut)
+def location_score(shop: OwnShopConsented, db: Db) -> dict:
+    """ML1: transparent weighted score over nearby counts and a starter product mix (assumption weights, DEC-21)."""
+    loc, location = nearby(db, shop)
+    rules = get_rules()
+    out = ml1.score(loc.counts, rules.location)
+    return {"shop_id": shop.id, "score": out["score"], "positive_drivers": out["positive_drivers"],
+            "negative_drivers": out["negative_drivers"], "location": location,
+            "starter_mix": ml1.starter_mix(loc.counts, rules.product_mix, shop.shop_type),
+            "weights_version": rules.location.version}
+
+
 @router.post("/{shop_id}/forecast", response_model=ForecastOut)
 def make_setup_forecast(shop: OwnShopConsented, db: Db, model: Model, body: ForecastIn | None = None) -> dict:
     if shop.size_sqft is None or shop.city_tier is None:
         raise HTTPException(422, detail={"code": "shop_profile_incomplete", "fields": ["size_sqft", "city_tier"]})
     today = clock.today()
     open_date, open_source = fc.resolve_open_date(body.open_date if body else None, shop.launch_date, today)
-    try:
-        loc = osm.location_counts(db, shop.lat, shop.lon)
-    except osm.OsmError as e:
-        raise HTTPException(503, detail={"code": "location_data_unavailable"}) from e
+    loc, location = nearby(db, shop)
     rules = get_rules()
     out = fc.setup_forecast(
         shop={"size_sqft": shop.size_sqft, "city_tier": shop.city_tier, "monthly_rent": shop.monthly_rent,
@@ -50,7 +69,6 @@ def make_setup_forecast(shop: OwnShopConsented, db: Db, model: Model, body: Fore
                                     "p10": m["p10"], "p50": m["p50"], "p90": m["p90"]} for m in out["months"]])
     db.add(row)
     db.commit()
-    location = {**{k: v for k, v in asdict(loc).items() if k != "cell"}, "is_measured": loc.is_measured}
     return {**out, "forecast_id": row.id, "shop_id": shop.id, "made_on": today, "open_date_source": open_source,
             "location": location}
 
