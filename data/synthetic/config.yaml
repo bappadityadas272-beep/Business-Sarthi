@@ -85,7 +85,11 @@ staff: {probs: {0: 0.30, 1: 0.40, 2: 0.20, 3: 0.10}, monthly_wage: [8000, 12000]
 # --demo: two fixed shops for D-05, written to out/demo/ (DEC-25, DEC-30). `performance` multiplies steady
 # revenue (1.0 = exactly like similar shops). Per-shop variation factors are fixed at 1.0 for demos.
 demos:
-  - name: "Ramesh Kirana"            # story: dip month + EMI squeeze
+  - name: "Ramesh Kirana"            # story: sales fall in month 2 and stay low + EMI squeeze (DEC-70)
+    phone: "+919000000001"           # demo login (mock OTP); not a real owner
+    lat: 26.8467                     # demo pin; the counts come from data/osm_mock/, not from the real place
+    lon: 80.9462
+    opening_cash: 30000              # hand-set demo value (DEC-71)
     shop_id: DEMO-001
     launch_date: "2026-08-01"
     end_date: "2026-10-31"
@@ -101,9 +105,13 @@ demos:
     staff_wage: 10000
     budget: 300000
     performance: 1.0
-    dip: {start: "2026-09-05", end: "2026-09-25", mult: 0.60}
-    loan: {principal: 200000, emi: 7500, due_day: 5}
+    dip: {start: "2026-09-05", end: "2026-10-31", mult: 0.60}     # never recovers in the period (DEC-70)
+    loan: {principal: 200000, emi: 7500, due_day: 5, tenure_months: 36}   # tenure: hand-set demo value
   - name: "Sunita General Store"     # story: healthy shop, expected review = grow
+    phone: "+919000000002"
+    lat: 18.5204
+    lon: 73.8567
+    opening_cash: 60000
     shop_id: DEMO-002
     launch_date: "2026-08-01"
     end_date: "2026-10-31"
@@ -120,4 +128,16 @@ demos:
     budget: 400000
     performance: 1.15
     dip: null
-    loan: {principal: 150000, emi: 5000, due_day: 10}
+    loan: {principal: 150000, emi: 5000, due_day: 10, tenure_months: 36}
+
+# Demo stock list used by `make seed` for both demo shops (D-05). HAND-SET DEMO VALUES: the items, prices and
+# daily units are illustrative, not market data. `pattern`: normal = restocked every week; low = the last restock
+# was missed (gives a low-stock alert); dead = sold for the first 3 weeks only (gives a dead-stock alert).
+demo_stock:
+  - {name: "Rice 1 kg",        category: staples,          unit: pack,  cost: 52,  price: 58,  daily_units: 12, pattern: normal}
+  - {name: "Atta 5 kg",        category: staples,          unit: bag,   cost: 215, price: 240, daily_units: 4,  pattern: low}
+  - {name: "Milk 500 ml",      category: dairy,            unit: pouch, cost: 27,  price: 29,  daily_units: 30, pattern: normal}
+  - {name: "Biscuits",         category: snacks_beverages, unit: pack,  cost: 8,   price: 10,  daily_units: 25, pattern: normal}
+  - {name: "Detergent 1 kg",   category: household,        unit: pack,  cost: 95,  price: 110, daily_units: 3,  pattern: normal}
+  - {name: "Bath soap",        category: personal_care,    unit: piece, cost: 28,  price: 34,  daily_units: 6,  pattern: normal}
+  - {name: "Festive gift box", category: snacks_beverages, unit: box,   cost: 180, price: 250, daily_units: 1,  pattern: dead}

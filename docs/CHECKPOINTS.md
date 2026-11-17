@@ -4,12 +4,12 @@
 
 ```yaml
 project_status:
-  phase: "1 - backend core in progress"
-  last_updated: "2026-11-16"
-  current_focus: "D-05 demo seed"
+  phase: "1 - backend core: hero loop done (forecast, logs, stock, loans, review, alerts, scheduler, demo seed); chatbot and frontend not started"
+  last_updated: "2026-11-17"
+  current_focus: "S-03 frontend skeleton or C-01 LLM client (human to choose)"
   blockers: []
   demo_path_ready: false
-  notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
+  notes: "Backend hero loop works end to end on synthetic demo data (make synth, make train, make seed, advance time). Open for the human: confirm DEC-53, DEC-54, DEC-56, DEC-60, DEC-63, DEC-66, DEC-68, DEC-69, DEC-71 (details the assistant chose); the demo raises no sales-dip alert (CHANGELOG D-05); live Overpass answer format is unverified. Frontend and chatbot not started by instruction."
 ```
 
 **Status values:** `TODO` · `IN_PROGRESS` · `DONE` · `BLOCKED` · `DROPPED`
@@ -36,7 +36,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | D-02 | Pick and **licence-check** one public retail dataset; document in `data/PUBLIC_DATA.md` (name, URL, licence, date checked) | F1 | P1 | S-01 | TODO | Licence permits our use, or dataset replaced | Do not commit the raw data if the licence forbids |
 | D-03 | Scheme KB v0: 5 to 8 entries from official pages, `verified:false`, with source URL and `last_verified` | F4 | P1 | S-01 | TODO | JSON validates against schema; every entry has a source URL | Human verification is R-04 |
 | D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | DONE | Loader validates every file with Pydantic | Loader `app/rules.py`; 8th file `investment_split.yaml` added (DEC-22); drafted values approved as assumptions (DEC-21) |
-| D-05 | Demo seed: Ramesh Kirana with 3 months of logs, a dip month and an EMI squeeze | all | P0 | D-01, B-01 | TODO | `make seed` creates the demo user and shop; demo script step 4 works | |
+| D-05 | Demo seed: Ramesh Kirana with 3 months of logs, a dip month and an EMI squeeze | all | P0 | D-01, B-01 | DONE | `make seed` creates the demo user and shop; demo script step 4 works | make seed loads Ramesh Kirana (review: pivot) and Sunita General Store (review: grow), dates shifted to the seed day (DEC-70); 6 tests. No sales-dip alert in the demo (see CHANGELOG). DEC-71 details await confirmation |
 
 ## B: Backend
 

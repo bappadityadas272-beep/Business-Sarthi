@@ -328,14 +328,14 @@ APP_USER_AGENT=BusinessSarthi/0.1 (contact: team email)
 
 ## 12. Demo script (acceptance for the whole prototype)
 
-Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
+Seed the two SYNTHETIC demo shops with `make seed` (after `make synth` and `make train`). Demo logins (mock OTP): `+919000000001` Ramesh Kirana, `+919000000002` Sunita General Store. Dates are shifted to the seed day (DEC-70):
 
 1. Log in with mock OTP, pick Hindi, give consent.
 2. Enter a kirana idea at a pin in a demo locality with budget 5 lakh and rent 15,000.
 3. Show location score, starter mix, forecast range chart, break-even and payback range, investment split.
-4. Jump into the pre-loaded 3 months of logs (one dip month and one EMI crunch seeded).
-5. Show dashboard alerts (low stock, EMI due soon, sales dip).
-6. Press "advance time", open the 3-month review and show the decision with reasons.
+4. Jump into the pre-loaded 88 days of logs (Ramesh: sales fall in month 2 and stay low, and an EMI crunch).
+5. Show dashboard alerts (low stock, dead stock, EMI due soon). The seeded data raises no sales-dip alert yet (see CHANGELOG 2026-11-17, D-05).
+6. Press "advance time" (2 days), open the 3-month review and show the decision with reasons (Ramesh: pivot; Sunita: grow).
 7. Ask the chatbot in Hindi: "Mujhe kaunsi scheme milegi?" and show cited sources, then "Is mahine ka profit kitna hai?" and show the tool-based answer.
 8. Open the expansion simulator and show payback range.
 

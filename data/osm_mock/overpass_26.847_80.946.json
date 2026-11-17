@@ -1,0 +1,58 @@
+{
+  "_note": "MOCK Overpass answer for the demo shop Ramesh Kirana (DEMO-001). Hand-set numbers equal to the shop's values in data/synthetic/config.yaml, NOT counted at the real place. Order: competitors, homes, schools, transit, banks_atms.",
+  "is_mock": true,
+  "version": 0.6,
+  "generator": "hand-made mock (not from Overpass)",
+  "elements": [
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "3"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "180"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "2"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "5"
+      }
+    },
+    {
+      "type": "count",
+      "id": 0,
+      "tags": {
+        "nodes": "0",
+        "ways": "0",
+        "relations": "0",
+        "total": "2"
+      }
+    }
+  ]
+}

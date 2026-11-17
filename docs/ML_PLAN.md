@@ -35,7 +35,7 @@
 - Categories: staples, dairy, snacks and beverages, household, personal care.
 - Margins by category from config (assumed ranges, such as 8 to 20 percent); fixed costs from rent and staff.
 - Output tables: `shops.csv` (static features), `daily.csv` (shop, day, category, sales, purchases), `labels.csv` (first-3-month and 12-month revenue for supervised training).
-- A `--demo` flag writes the Ramesh Kirana shop with a seeded dip month and EMI squeeze.
+- A `--demo` flag writes the two demo shops: Ramesh Kirana (sales dip from month 2 that does not recover, EMI squeeze; DEC-70) and Sunita General Store (healthy). `make seed` loads them into the database.
 - Seeded and reproducible (`--seed`).
 
 **Caveat to state in the UI and README:** because the training data is synthetic, forecast accuracy on real shops is **unknown** until a pilot. The prototype demonstrates the pipeline.

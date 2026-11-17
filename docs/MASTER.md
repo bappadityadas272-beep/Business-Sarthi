@@ -1,5 +1,5 @@
 # Business Sarthi: MASTER (generated)
-> Generated on 2026-11-16 by `tools/build_master.py`. **Do not edit by hand.** Edit the source files, then run `python tools/build_master.py`.
+> Generated on 2026-11-17 by `tools/build_master.py`. **Do not edit by hand.** Edit the source files, then run `python tools/build_master.py`.
 > Contents: `AGENTS.md`, `docs/CHECKPOINTS.md`, `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/ML_PLAN.md`, `docs/DECISIONS.md`, `docs/CHANGELOG.md`.
 
 
@@ -104,12 +104,12 @@ Follow the rules in AGENTS.md. When you finish a checkpoint, update CHECKPOINTS.
 
 ```yaml
 project_status:
-  phase: "1 - backend core in progress"
-  last_updated: "2026-11-16"
-  current_focus: "D-05 demo seed"
+  phase: "1 - backend core: hero loop done (forecast, logs, stock, loans, review, alerts, scheduler, demo seed); chatbot and frontend not started"
+  last_updated: "2026-11-17"
+  current_focus: "S-03 frontend skeleton or C-01 LLM client (human to choose)"
   blockers: []
   demo_path_ready: false
-  notes: "Done in the order set by the human: S-01, S-02, B-01, D-04, D-01. Next order set by the human: M-03, M-04, B-02, B-03, B-04, M-01 (mock OSM), M-05."
+  notes: "Backend hero loop works end to end on synthetic demo data (make synth, make train, make seed, advance time). Open for the human: confirm DEC-53, DEC-54, DEC-56, DEC-60, DEC-63, DEC-66, DEC-68, DEC-69, DEC-71 (details the assistant chose); the demo raises no sales-dip alert (CHANGELOG D-05); live Overpass answer format is unverified. Frontend and chatbot not started by instruction."
 ```
 
 **Status values:** `TODO` · `IN_PROGRESS` · `DONE` · `BLOCKED` · `DROPPED`
@@ -136,7 +136,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | D-02 | Pick and **licence-check** one public retail dataset; document in `data/PUBLIC_DATA.md` (name, URL, licence, date checked) | F1 | P1 | S-01 | TODO | Licence permits our use, or dataset replaced | Do not commit the raw data if the licence forbids |
 | D-03 | Scheme KB v0: 5 to 8 entries from official pages, `verified:false`, with source URL and `last_verified` | F4 | P1 | S-01 | TODO | JSON validates against schema; every entry has a source URL | Human verification is R-04 |
 | D-04 | Rule files: `review_rules.yaml`, `alert_rules.yaml`, `location_weights.yaml`, `product_mix.yaml`, `blend.yaml`, `actions.yaml`, `expansion.yaml` | F1,F2,F5,F6,F8 | P0 | S-01 | DONE | Loader validates every file with Pydantic | Loader `app/rules.py`; 8th file `investment_split.yaml` added (DEC-22); drafted values approved as assumptions (DEC-21) |
-| D-05 | Demo seed: Ramesh Kirana with 3 months of logs, a dip month and an EMI squeeze | all | P0 | D-01, B-01 | TODO | `make seed` creates the demo user and shop; demo script step 4 works | |
+| D-05 | Demo seed: Ramesh Kirana with 3 months of logs, a dip month and an EMI squeeze | all | P0 | D-01, B-01 | DONE | `make seed` creates the demo user and shop; demo script step 4 works | make seed loads Ramesh Kirana (review: pivot) and Sunita General Store (review: grow), dates shifted to the seed day (DEC-70); 6 tests. No sales-dip alert in the demo (see CHANGELOG). DEC-71 details await confirmation |
 
 ## B: Backend
 
@@ -694,14 +694,14 @@ APP_USER_AGENT=BusinessSarthi/0.1 (contact: team email)
 
 ## 12. Demo script (acceptance for the whole prototype)
 
-Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
+Seed the two SYNTHETIC demo shops with `make seed` (after `make synth` and `make train`). Demo logins (mock OTP): `+919000000001` Ramesh Kirana, `+919000000002` Sunita General Store. Dates are shifted to the seed day (DEC-70):
 
 1. Log in with mock OTP, pick Hindi, give consent.
 2. Enter a kirana idea at a pin in a demo locality with budget 5 lakh and rent 15,000.
 3. Show location score, starter mix, forecast range chart, break-even and payback range, investment split.
-4. Jump into the pre-loaded 3 months of logs (one dip month and one EMI crunch seeded).
-5. Show dashboard alerts (low stock, EMI due soon, sales dip).
-6. Press "advance time", open the 3-month review and show the decision with reasons.
+4. Jump into the pre-loaded 88 days of logs (Ramesh: sales fall in month 2 and stay low, and an EMI crunch).
+5. Show dashboard alerts (low stock, dead stock, EMI due soon). The seeded data raises no sales-dip alert yet (see CHANGELOG 2026-11-17, D-05).
+6. Press "advance time" (2 days), open the 3-month review and show the decision with reasons (Ramesh: pivot; Sunita: grow).
 7. Ask the chatbot in Hindi: "Mujhe kaunsi scheme milegi?" and show cited sources, then "Is mahine ka profit kitna hai?" and show the tool-based answer.
 8. Open the expansion simulator and show payback range.
 
@@ -760,7 +760,7 @@ Seed shop "Ramesh Kirana" with `python data/synthetic/generate.py --demo`:
 - Categories: staples, dairy, snacks and beverages, household, personal care.
 - Margins by category from config (assumed ranges, such as 8 to 20 percent); fixed costs from rent and staff.
 - Output tables: `shops.csv` (static features), `daily.csv` (shop, day, category, sales, purchases), `labels.csv` (first-3-month and 12-month revenue for supervised training).
-- A `--demo` flag writes the Ramesh Kirana shop with a seeded dip month and EMI squeeze.
+- A `--demo` flag writes the two demo shops: Ramesh Kirana (sales dip from month 2 that does not recover, EMI squeeze; DEC-70) and Sunita General Store (healthy). `make seed` loads them into the database.
 - Seeded and reproducible (`--seed`).
 
 **Caveat to state in the UI and README:** because the training data is synthetic, forecast accuracy on real shops is **unknown** until a pilot. The prototype demonstrates the pipeline.
@@ -978,6 +978,8 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-67 | 2026-11-17 | Alerts store, chosen by the human: (a) when the owner resolves an alert and the problem is still there at the next check, the owner is reminded with a new alert; the owner can turn reminders off for that problem (`mute: true` on resolve), and is then alerted again only when a new problem appears (the old one went away and came back, or it is another kind); (b) an alert is never closed automatically: when its problem goes away it stays open until the owner resolves it; (c) a notification is created for new warn and critical alerts and for a ready review, not for info alerts (dead stock, data gap) | The owner stays in control: reminded by default, quiet on request, and nothing disappears unseen | Stay quiet after any resolve; remind after 7 days; close alerts automatically; notify on every alert | ACTIVE |
 | DEC-68 | 2026-11-17 | Alerts store details **taken by the assistant and to be confirmed by the human**: one problem = one `dedupe_key` (the kind; for an EMI the kind + loan + due date, so next month's instalment is a new problem); while an alert is open its numbers are refreshed in place; an alert whose problem went away shows `still_active: false` and `cleared_on`; a reminder is raised at the very next check (daily once B-09 runs) and its notification carries `is_reminder: true`; `GET /alerts` only reads, `POST /alerts/refresh` runs the rules (the daily job will call the same service); cash for the EMI rule = opening cash + logs up to yesterday - instalments due before today; new endpoints `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`; migration 0006 adds the alert fields and `notification.created_at` | ARCHITECTURE lists the alert endpoints but not the life cycle | Compute alerts on every read; one key per item; mute as a shop-wide setting per alert kind | ACTIVE |
 | DEC-69 | 2026-11-17 | Scheduler and demo clock details **taken by the assistant and to be confirmed by the human**: a review is due every 90 days after the launch date (launch + 90, + 180, ...) and covers the 90 days that ended the day before; only the latest due date is looked at, reviews missed while the app was off are not made up; a shop without a launch date gets no scheduled review; one APScheduler job runs every 60 minutes and does the day's work for every shop (alerts, then nothing new if already done), which is safe because the work is idempotent; shops whose owner has no active `shop_data` consent are skipped; `POST /api/dev/advance-time` (1 to 400 days, login required, 403 `dev_mode_off` unless DEV_MODE is on) runs the daily job for every day passed; the demo clock lives in memory and returns to the real date on restart; `GET /api/dev/clock` shows the app's today; the scheduled review does not run the re-forecast (the frontend calls `/reforecast` itself); `SCHEDULER_ENABLED=0` switches the job off (the tests do) | ARCHITECTURE names APScheduler and the endpoint but not these details | Calendar quarters; a fixed 02:00 job; making up every missed review; storing the clock in the database | ACTIVE |
+| DEC-70 | 2026-11-17 | Demo seed, **chosen by the human** (changes DEC-25). (a) Ramesh Kirana's 40% sales dip now starts 2026-09-05 and lasts to 2026-10-31 (it no longer ends on 09-25), because with the 3-week dip the review measured HOLD (debt cover 1.40 / -1.87 / 2.25, revenue 90% of forecast); with the lasting dip it measures PIVOT. EMI stays 7,500. (b) `make seed` shifts all demo dates to the seed day: the last log is yesterday and the first 3-month review falls due 2 days later; past alerts are replayed day by day. Weekday and festival patterns in the demo data therefore no longer line up with the calendar. (c) Two demo logins, one per shop: +919000000001 (Ramesh Kirana) and +919000000002 (Sunita General Store), mock OTP | The work order asks for pivot (Ramesh) and grow (Sunita); fixed dates would look stale after 2026-10-31 | 30% lasting dip; EMI 18,000; keep data and accept hold; fixed dates; one login for both shops | ACTIVE |
+| DEC-71 | 2026-11-17 | Demo seed details **taken by the assistant and to be confirmed by the human**. All are hand-set demo values, not data: opening cash 30,000 (Ramesh) and 60,000 (Sunita); loan tenure 36 months; in the seeded data the EMI falls on the launch day of every month (the `due_day` 5 and 10 of DEC-25 and DEC-30 are not used, because shifted dates give them no meaning); rent plus wages are logged as one expense under `other` on the launch day of every month; demo pins are city-centre coordinates (Lucknow, Pune) whose map counts come from mock files in `data/osm_mock/` equal to the config values, not from the real places; a 7-item demo stock list (`demo_stock` in `config.yaml`) with invented prices, one item left low and one dead; the seed gives the `shop_data` consent for the fictional owners; seeding again deletes the two demo users and all their data. Measured consequence: Ramesh's computed cash is below zero for 7 days in month 3 (lowest -7,171) and is 5,077 on the seed day, which is what makes the EMI alert show; with opening cash 38,000 cash never goes below zero but no EMI alert shows | Needed to make the seed runnable; demo script step 5 lists an EMI alert | Opening cash 38,000; EMI on its own due day | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -989,6 +991,27 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: D-05 demo seed (two synthetic demo shops)
+
+- **Checkpoint:** D-05 DONE. Acceptance: `make seed` creates the demo users and shops with the pre-loaded logs
+  (run twice against the dev database; `tests/test_seed.py`, 6 tests).
+- `backend/app/seed.py` (`python -m app.seed`, `make seed`): Ramesh Kirana and Sunita General Store, each with a demo
+  login, consent, shop (`is_demo`), set-up forecast, 88 days of logs, monthly rent and wages, a loan, 7 stock items
+  and replayed alerts. Dates are shifted to the seed day (DEC-70). Refuses data that is not labelled
+  `is_synthetic=true` or that was generated from another `config.yaml`.
+- `data/synthetic/config.yaml`: Ramesh's dip now lasts to 2026-10-31 (DEC-70, changes DEC-25); demo phones, pins,
+  opening cash, loan tenure and `demo_stock` added (DEC-71). Run `make synth` before `make seed` after pulling.
+- `data/osm_mock/`: one mock map file per demo pin (hand-set counts, not the real places).
+- **Measured with the trained model (seed days 2026-11-17 to 2027-05-29, six dates):** after advancing 2 days Ramesh's
+  review is `pivot` (revenue 72 to 73% of forecast, debt cover 1.40 / -2.04 / -0.56, cash runway 14.6 days) and
+  Sunita's is `grow` (revenue 166 to 169% of forecast). Both with `medium` confidence.
+- **Missed:** the demo shows NO sales-dip alert. A 40% dip in a 2-month-old shop gives a 7-day / 28-day ratio of
+  0.695 but the robust z-score stays above -2 (sales were still ramping up, so the base is spread out). A 45% dip
+  would raise the alert on 2 days, a 50% dip on 4 days (measured). Neither the dip nor the alert rule was changed;
+  the human has to choose. Demo script step 5 therefore shows low stock, dead stock and EMI due, not sales dip.
+- **Known limits:** Ramesh's computed cash is below zero for 7 days (DEC-71); the low-stock alert opens early
+  (day 20) and stays open; `make seed` needs `make synth` and `make train` first.
 
 ## 2026-11-17: B-09 scheduler jobs and demo advance-time
 

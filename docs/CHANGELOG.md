@@ -2,6 +2,27 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: D-05 demo seed (two synthetic demo shops)
+
+- **Checkpoint:** D-05 DONE. Acceptance: `make seed` creates the demo users and shops with the pre-loaded logs
+  (run twice against the dev database; `tests/test_seed.py`, 6 tests).
+- `backend/app/seed.py` (`python -m app.seed`, `make seed`): Ramesh Kirana and Sunita General Store, each with a demo
+  login, consent, shop (`is_demo`), set-up forecast, 88 days of logs, monthly rent and wages, a loan, 7 stock items
+  and replayed alerts. Dates are shifted to the seed day (DEC-70). Refuses data that is not labelled
+  `is_synthetic=true` or that was generated from another `config.yaml`.
+- `data/synthetic/config.yaml`: Ramesh's dip now lasts to 2026-10-31 (DEC-70, changes DEC-25); demo phones, pins,
+  opening cash, loan tenure and `demo_stock` added (DEC-71). Run `make synth` before `make seed` after pulling.
+- `data/osm_mock/`: one mock map file per demo pin (hand-set counts, not the real places).
+- **Measured with the trained model (seed days 2026-11-17 to 2027-05-29, six dates):** after advancing 2 days Ramesh's
+  review is `pivot` (revenue 72 to 73% of forecast, debt cover 1.40 / -2.04 / -0.56, cash runway 14.6 days) and
+  Sunita's is `grow` (revenue 166 to 169% of forecast). Both with `medium` confidence.
+- **Missed:** the demo shows NO sales-dip alert. A 40% dip in a 2-month-old shop gives a 7-day / 28-day ratio of
+  0.695 but the robust z-score stays above -2 (sales were still ramping up, so the base is spread out). A 45% dip
+  would raise the alert on 2 days, a 50% dip on 4 days (measured). Neither the dip nor the alert rule was changed;
+  the human has to choose. Demo script step 5 therefore shows low stock, dead stock and EMI due, not sales dip.
+- **Known limits:** Ramesh's computed cash is below zero for 7 days (DEC-71); the low-stock alert opens early
+  (day 20) and stays open; `make seed` needs `make synth` and `make train` first.
+
 ## 2026-11-17: B-09 scheduler jobs and demo advance-time
 
 - **Checkpoint:** B-09 DONE. Acceptance: advancing 90 days triggers a review and stores it (test

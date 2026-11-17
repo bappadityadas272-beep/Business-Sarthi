@@ -2,13 +2,14 @@
 #   docker compose run --rm -w /repo backend make train
 # (Git Bash: export MSYS_NO_PATHCONV=1 first.)
 SYNTH := data/synthetic/out
-.PHONY: help synth train eval eval-reforecast eval-stock eval-alerts test lint
+.PHONY: help synth seed train eval eval-reforecast eval-stock eval-alerts test lint
 
 help:
 	@echo "make synth   regenerate synthetic data (+ demo shops) in $(SYNTH)/"
 	@echo "make train   train and calibrate ML2 into backend/data/models/ml2/ (runs synth if needed)"
 	@echo "make eval    ML2 evaluation on the held-out test shops; rewrites docs/EVAL_REPORT.md"
 	@echo "make eval-reforecast   ML3 re-forecast backtest (several minutes); updates its part of docs/EVAL_REPORT.md"
+	@echo "make seed    load the two SYNTHETIC demo shops into the database (needs synth and train)"
 	@echo "make test    run the backend test suite"
 	@echo "make lint    ruff over backend/ and data/synthetic/"
 
@@ -32,6 +33,9 @@ eval-alerts:
 
 eval-stock:
 	cd backend && python ../eval/stock_eval.py --write
+
+seed: $(SYNTH)/daily.csv
+	cd backend && alembic upgrade head && python -m app.seed
 
 test:
 	cd backend && pytest -q
