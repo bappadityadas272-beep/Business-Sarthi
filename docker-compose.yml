@@ -1,14 +1,26 @@
-# Dev: `docker compose up backend` serves http://localhost:8000/docs
-# Tests: `docker compose run --rm backend pytest`
+# The one supported way to run the backend (DEC-82). From the repo root:
+#   docker compose up            migrations, SYNTHETIC data + model if missing, demo seed, API on http://localhost:8000/docs
+#   docker compose run --rm backend make test      (also: make lint, make eval, make demo; see docs/RUNBOOK.md)
+# The first start trains the forecast model and takes a few minutes; later starts take seconds.
 services:
   backend:
     build: ./backend
     working_dir: /repo/backend
+    command: ["sh", "/repo/backend/docker/start.sh"]
     volumes:
       - .:/repo
       - /repo/backend/.venv   # hide any host venv from the container
     env_file:
       - path: .env
         required: false
+    environment:
+      SEED_DEMO: ${SEED_DEMO:-1}               # 0 = do not load the SYNTHETIC demo shops on start
+      UVICORN_RELOAD: ${UVICORN_RELOAD:-1}     # 1 = reload on code changes (development)
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 900s                       # first start trains the model

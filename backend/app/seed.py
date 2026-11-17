@@ -166,10 +166,25 @@ def seed(db: Session, today: date, *, config: Path = CONFIG, demo_dir: Path = DE
             "shops": [_seed_shop(db, dm, cfg, daily, today, model) for dm in cfg["demos"]]}
 
 
-def main() -> None:
+def demo_present(db: Session, config: Path = CONFIG) -> bool:
+    """True when every demo login already exists (used by `--if-missing`, so a restart keeps the demo state)."""
+    phones = [dm["phone"] for dm in yaml.safe_load(config.read_text(encoding="utf-8"))["demos"]]
+    found = db.scalars(select(User.phone).where(User.phone.in_(phones))).all()
+    return len(set(found)) == len(phones)
+
+
+def main(argv: list[str] | None = None) -> None:
+    import argparse
+
     from app.db import SessionLocal
+    ap = argparse.ArgumentParser(description="Load the two SYNTHETIC demo shops (replaces them if present).")
+    ap.add_argument("--if-missing", action="store_true", help="do nothing when the demo shops already exist")
+    args = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING)
     with SessionLocal() as db:
+        if args.if_missing and demo_present(db):
+            print("[SYNTHETIC DEMO DATA] demo shops already present; not reseeded (run `make seed` to reset them)")
+            return
         try:
             out = seed(db, clock.today())
         except SeedError as e:

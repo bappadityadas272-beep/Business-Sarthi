@@ -2,6 +2,21 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: one way to run the backend, demo driver (DEC-82)
+
+- **`docker compose up` is the one supported way to run the backend.** `backend/docker/start.sh` runs, in order:
+  1. migrations;
+  2. SYNTHETIC data and model training, only if they are missing;
+  3. the demo seed, only if the demo users are missing (`SEED_DEMO=1`, the default; `seed --if-missing`);
+  4. uvicorn.
+- **Makefile:** every target runs inside the container; on a host, the Makefile hands the target to Docker.
+  - `make eval` now runs every evaluation. The ML2-only target is now `make eval-forecast`.
+  - New targets: `backup`, `restore FILE=`, `reset-db`, `seed-if-missing`, `demo`. Backup and restore use `scripts/db_tool.py`.
+- **`scripts/demo_run.py`** drives ARCHITECTURE §12 steps 1 to 8 over HTTP only and prints PASS, FAIL or MISSED.
+  - Until M-02 (location score) and M-10 (simulator) are built, steps 3 and 8 FAIL.
+  - Step 7's scheme half is MISSED until the team's `data/kb/schemes.json` exists.
+- **Docs:** new `docs/RUNBOOK.md` (start, stop, reset, reseed, backup, logs, tests, common errors) and a README "Getting started (backend only)". The README status note now says the backend prototype exists.
+
 ## 2026-11-17: C-07 live check, Gemini model fallback (DEC-81)
 
 - `make chat-live` with the project key: the old default `gemini-2.5-flash` answers **404 "no longer available to

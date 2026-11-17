@@ -115,3 +115,14 @@ def test_demo_stock_never_sells_more_than_is_on_hand():
                 last_sale = offset
         if spec["pattern"] == "dead":
             assert on_hand > 0 and last_sale <= 20
+
+def test_demo_present_only_when_every_demo_login_exists(client, db_factory):
+    """`seed --if-missing` (DEC-82): a restart must not wipe the demo state, but a half-seeded database is reseeded."""
+    with db_factory() as db:
+        assert sd.demo_present(db) is False
+        db.add(User(phone=RAMESH, language="hi"))
+        db.commit()
+        assert sd.demo_present(db) is False                              # Sunita missing: seed again
+        db.add(User(phone=SUNITA, language="en"))
+        db.commit()
+        assert sd.demo_present(db) is True

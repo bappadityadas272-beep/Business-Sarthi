@@ -992,6 +992,7 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-79 | 2026-11-17 | Chat stream format (C-07), **chosen by the human**: `POST /api/chat` with body `{shop_id, message}` returns `text/event-stream` (SSE): one `meta` event (language, intent), `delta` events with chunks of the already approved text (DEC-73), then one `done` event with `message_id`, `guard` (`passed`, `failed`, `template` or `llm_unavailable`) and `sources` (one entry per tool: source id, label, as_of, is_estimate and the facts used). The user and assistant turns are stored as `chat_message` rows; `sources_json` holds the same sources | Standard format the React client can read with `fetch`; sources reach the UI in the same response | NDJSON lines; plain text with sources in a header | ACTIVE |
 | DEC-80 | 2026-11-17 | Chat evaluation (C-08), **chosen by the human**: each line of `eval/chat_eval.jsonl` has `id`, `question`, `expected_intent` (my_numbers, schemes, how_to, smalltalk or out_of_scope), and optionally `shop` (ramesh or sunita, default ramesh), `expected_refusal` (medical, legal or guarantee), `expected_facts` (fact keys whose numbers must appear in the answer) and `notes`. **Grounded** = the LLM's own reply passed the guard; template-only intents count as grounded; a guard failure or provider outage counts as NOT grounded, even though the owner saw a safe template. Correct refusal = the expected refusal kind was given, and no refusal when none was expected. The questions are written by the team, not by the coding model | Measures how often the LLM itself goes wrong, not just whether the owner was protected | Count the template fallback as grounded; no expected facts | ACTIVE |
 | DEC-81 | 2026-11-17 | Gemini model, **chosen by the human**: default `gemini-3.8-flash`; when it is unavailable (429/5xx after its retries, timeout or network) the same request is tried once on `gemini-3.5-flash-lite` (its own retries per DEC-75), then the template. A refusal (4xx, for example a bad key or a retired model) does not use the fallback. With a fallback the primary gets 1 retry instead of 3, so the owner does not wait through two full retry rounds (assistant's detail). `LLM_FALLBACK_MODEL` overrides the fallback (`off` = none). Gemini 3 models get `thinkingLevel: low` (lite models no thinking setting) and 512 extra output tokens for thinking, an assumption because 3.8-flash could not be measured | Live check 2026-11-17: `gemini-2.5-flash` answered 404 "no longer available to new users"; 3.8-flash, 3.5-flash and flash-latest answered 503 "high demand"; only 3.5-flash-lite answered. With this setting all 6 LLM answers of `make chat-live` passed the guard (all via the fallback) | 3.5-flash-lite only; 3.8-flash only (template when overloaded) | ACTIVE |
+| DEC-82 | 2026-11-17 | Backend run model (S-01/S-04 follow-up, session goal FLAG 1, the human's instruction): `docker compose up` is the one supported way to run the backend. `backend/docker/start.sh` runs `alembic upgrade head`, builds the SYNTHETIC data and trains the model only when they are missing, loads the two SYNTHETIC demo shops only when they are missing (`SEED_DEMO=1` default, `0` = never; `python -m app.seed --if-missing`), then starts uvicorn. Every Makefile target runs inside the backend container: on a host the Makefile hands the same target to `docker compose run --rm`. `make eval` now runs every evaluation (forecast, re-forecast, stock, alerts); the old ML2-only target is `make eval-forecast`. `make backup` / `make restore FILE=...` use SQLite's online backup API (`scripts/db_tool.py`). `scripts/demo_run.py` drives demo steps 1 to 8 over HTTP only and prints PASS, FAIL or MISSED (MISSED = a recorded gap such as the team's scheme KB, DEC-74; `--strict` makes MISSED fail) | One way to run removes host DLL problems (DEC-20) and keeps teammates on the same setup; seeding only when missing keeps a restart from wiping owner-entered data | Seed on every start; host venv as an alternative | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -1003,6 +1004,21 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: one way to run the backend, demo driver (DEC-82)
+
+- **`docker compose up` is the one supported way to run the backend.** `backend/docker/start.sh` runs, in order:
+  1. migrations;
+  2. SYNTHETIC data and model training, only if they are missing;
+  3. the demo seed, only if the demo users are missing (`SEED_DEMO=1`, the default; `seed --if-missing`);
+  4. uvicorn.
+- **Makefile:** every target runs inside the container; on a host, the Makefile hands the target to Docker.
+  - `make eval` now runs every evaluation. The ML2-only target is now `make eval-forecast`.
+  - New targets: `backup`, `restore FILE=`, `reset-db`, `seed-if-missing`, `demo`. Backup and restore use `scripts/db_tool.py`.
+- **`scripts/demo_run.py`** drives ARCHITECTURE §12 steps 1 to 8 over HTTP only and prints PASS, FAIL or MISSED.
+  - Until M-02 (location score) and M-10 (simulator) are built, steps 3 and 8 FAIL.
+  - Step 7's scheme half is MISSED until the team's `data/kb/schemes.json` exists.
+- **Docs:** new `docs/RUNBOOK.md` (start, stop, reset, reseed, backup, logs, tests, common errors) and a README "Getting started (backend only)". The README status note now says the backend prototype exists.
 
 ## 2026-11-17: C-07 live check, Gemini model fallback (DEC-81)
 

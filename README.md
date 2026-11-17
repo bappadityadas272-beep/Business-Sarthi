@@ -19,6 +19,7 @@
 
 ## Contents
 
+- [Getting started (backend only)](#-getting-started-backend-only)
 - [The story](#-the-story)
 - [The problem](#-the-problem)
 - [Our solution](#-our-solution)
@@ -33,7 +34,28 @@
 - [Research and references](#-research-and-references)
 - [Team](#-team)
 
-> **Project status.** Business Sarthi is currently at the **concept and design stage**. This repository holds the project documentation submitted to *The Corporate Glitch '26* (Builders Hub). Prototype code is not here yet. Everything below describes the product as designed, and anything not yet built is marked **planned**.
+> **Project status.** Business Sarthi is a **prototype**. The backend API exists: forecast, re-forecast, 3-month review, stock, alerts and a grounded chatbot, all running on **SYNTHETIC** demo data. The owner-facing app (frontend) is not built yet. The exact status of every part is in [`docs/CHECKPOINTS.md`](docs/CHECKPOINTS.md). Anything not yet built is marked **planned**, and every number is an estimate or a target, not a promise.
+
+---
+
+## 🚀 Getting started (backend only)
+
+You need Docker (with Compose v2) and git. Nothing else is needed on your PC.
+
+```sh
+git clone https://github.com/bappadityadas272-beep/Business-Sarthi.git
+cd Business-Sarthi
+cp .env.example .env                       # PowerShell: Copy-Item .env.example .env
+docker compose up -d                       # first start: migrations, SYNTHETIC data, model training, demo seed
+docker compose logs -f backend             # wait for "Uvicorn running", then Ctrl+C
+docker compose exec backend make demo      # demo steps 1 to 8 over HTTP: PASS / FAIL / MISSED per step
+```
+
+- The API docs are at <http://localhost:8000/docs>.
+- Run the tests with `docker compose run --rm backend make test`.
+- Stop with `docker compose down`.
+- The chatbot uses a no-key `stub` until you set `LLM_PROVIDER` and `LLM_API_KEY` in `.env`. Never commit `.env`.
+- Database reset, backup and restore, logs and common errors are in [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 ---
 
