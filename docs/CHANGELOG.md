@@ -2,6 +2,30 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: C-07 chat endpoint
+
+- **Checkpoint:** C-07 DONE for the stub. Acceptance: demo step 7 "Is mahine ka profit kitna hai?" in Hinglish,
+  Hindi and English gives the code-computed profit, and the guard passes it (`tests/test_chat_api.py`).
+- **Missed targets:**
+  - The live provider check has not run, because no `.env` with `LLM_PROVIDER` and `LLM_API_KEY` exists. Run
+    `cd backend && python ../eval/chat_live_check.py` (in Docker) once it is set.
+  - The scheme half of step 7 is template only (DEC-74).
+- Decisions:
+  - DEC-78 approved (now ACTIVE).
+  - DEC-79 (new): `POST /api/chat {shop_id, message}` streams SSE events (`meta`, then `delta`s, then `done` with
+    `message_id`, `guard` and `sources`).
+- `app/services/chat.py`, `answer()`: detect the language, route, run the tools, build the template, then:
+  - for `my_numbers` and `how_to` only: check the cache, call the LLM, run the guard;
+  - store the user and assistant `chat_message` rows. `sources_json` has one entry per tool, and every fact
+    carries its source label.
+  - `guard` values: `passed`, `failed` (the template is shown), `template` (no LLM call) or `llm_unavailable`.
+  - Only passed answers are cached.
+- `tests/conftest.py` now forces `LLM_PROVIDER=stub` for every test, so a key in `.env` never makes tests call a
+  hosted API.
+- Fixes found while testing C-07:
+  - The scheme template said "pakki" (a guarantee word for the guard); it now says "sahi".
+  - The Devanagari scheme-name rule no longer flags generic phrases such as "किसी योजना" or "योजनाओं".
+
 ## 2026-11-17: C-06 answer guard
 
 - **Checkpoint:** C-06 DONE. Acceptance: all adversarial tests pass, and a forced bad stub answer is replaced by the

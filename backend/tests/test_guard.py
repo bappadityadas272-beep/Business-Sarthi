@@ -86,6 +86,9 @@ def test_invented_scheme_is_caught():
                  "आप प्रधानमंत्री दुकान योजना देखिए।"):
         r = guard.check(text, question="Koi yojana hai?", language=detect_lang(text), tool_outputs=[schemes])
         assert "scheme_not_in_kb" in r.failures, text
+    for text in ("मैं किसी योजना का नाम नहीं बताऊँगा।", "कृपया सरकारी योजनाओं का आधिकारिक पेज देखिए।",
+                 "Main kisi yojana ka naam nahi bataunga."):     # generic "scheme" words are not names
+        assert guard.check(text, question="Koi yojana hai?", language=detect_lang(text), tool_outputs=[schemes]).ok
     kb = {**schemes, "data": {"schemes": [{"id": "kb-mudra-01", "name": "PM Mudra Yojana",
                                            "url": "https://www.mudra.org.in/"}]}}
     cited = "PM Mudra Yojana dekhiye [kb-mudra-01]: https://www.mudra.org.in/"

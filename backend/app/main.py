@@ -2,7 +2,21 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import alerts, auth, dev, forecast, health, loans, logs, me, notifications, reviews, shops, stock
+from app.api import (
+    alerts,
+    auth,
+    chat,
+    dev,
+    forecast,
+    health,
+    loans,
+    logs,
+    me,
+    notifications,
+    reviews,
+    shops,
+    stock,
+)
 from app.jobs import scheduler
 
 
@@ -19,5 +33,5 @@ app = FastAPI(
     version="0.1.0",
     description="Prototype backend. Forecasts are estimates trained on synthetic data.",
 )
-for module in (health, auth, me, shops, forecast, logs, stock, loans, reviews, alerts, notifications, dev):
+for module in (health, auth, me, shops, forecast, logs, stock, loans, reviews, alerts, notifications, chat, dev):
     app.include_router(module.router, prefix="/api")

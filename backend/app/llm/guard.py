@@ -52,8 +52,11 @@ CITATION = re.compile(r"\[[\w-]+\]")
 SCHEME_NAMES = ["mudra", "pmmy", "pmegp", "svanidhi", "swanidhi", "stand-up india", "standup india", "stand up india",
                 "cgtmse", "vishwakarma", "udyam", "startup india", "mudra loan", "shishu loan", "kishore loan",
                 "tarun loan", "मुद्रा", "स्वनिधि", "विश्वकर्मा", "उद्यम", "स्टैंड-अप"]
-SCHEME_PATTERN = re.compile(r"\b(?:[A-Z][\w-]*\s+){1,5}(?:Yojana|Yojna|Scheme)\b|"
-                            r"(?:[ऀ-ॿ]+\s+){1,5}योजना(?![ऀ-ॿ])")
+SCHEME_PATTERN = re.compile(r"\b(?:[A-Z][\w-]*\s+){1,5}(?:Yojana|Yojna|Scheme)\b")
+# Devanagari has no capitals: "<word> योजना" is a name unless the word is a common one ("किसी योजना" = "any scheme").
+DEV_SCHEME = re.compile(r"([ऀ-ॿ]+)\s+योजना(?![ऀ-ॿ])")      # singular only: "योजनाओं" (plural) is generic
+DEV_NOT_NAME = {"किसी", "कोई", "कौन", "कौनसी", "सी", "इस", "उस", "यह", "वह", "ये", "वो", "सरकारी", "की", "के", "का",
+                "हर", "सभी", "एक", "नई", "नयी", "अन्य", "किस", "ऐसी", "कई", "आपकी", "अपनी", "दूसरी", "भी", "अभी", "तो", "ही", "और", "या", "में", "से", "पर", "लिए", "नहीं", "है"}
 
 
 @dataclass
@@ -168,7 +171,8 @@ def check(answer: str, *, question: str, language: Language, tool_outputs: list[
     schemes = [s for o in tool_outputs if o.get("tool") == "match_schemes"
                for s in (o.get("data") or {}).get("schemes", [])]
     low = answer.lower()
-    named = [w for w in SCHEME_NAMES if w in low] + SCHEME_PATTERN.findall(answer)
+    named = [w for w in SCHEME_NAMES if w in low] + SCHEME_PATTERN.findall(answer) + [
+        f"{w} योजना" for w in DEV_SCHEME.findall(answer) if w not in DEV_NOT_NAME]
     for name in named:
         hit = [s for s in schemes if name.strip().lower() in str(s.get("name", "")).lower()]
         if not hit or not any(str(s.get("id")) in answer for s in hit):

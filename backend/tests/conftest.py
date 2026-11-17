@@ -11,6 +11,20 @@ SHOP = {"name": "Test Kirana", "shop_type": "kirana", "lat": 28.61, "lon": 77.21
         "budget": 300000.0, "monthly_rent": 9000.0, "staff_count": 1}
 
 
+@pytest.fixture(autouse=True)
+def stub_llm(monkeypatch):
+    """Tests never call a hosted LLM, even when .env sets LLM_PROVIDER (the live check is a separate script)."""
+    from app.config import get_settings
+    from app.llm.client import answer_cache
+    monkeypatch.setenv("LLM_PROVIDER", "stub")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    get_settings.cache_clear()
+    answer_cache.clear()
+    yield
+    get_settings.cache_clear()
+    answer_cache.clear()
+
+
 @pytest.fixture
 def db_factory(tmp_path):
     engine = make_engine(f"sqlite:///{(tmp_path / 'api.db').as_posix()}")
