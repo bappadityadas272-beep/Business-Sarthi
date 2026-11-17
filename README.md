@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Status" src="https://img.shields.io/badge/status-concept%20%26%20design-F76707?style=for-the-badge">
+  <img alt="Status" src="https://img.shields.io/badge/status-prototype%20(backend%20API)-F76707?style=for-the-badge">
   <img alt="Hackathon" src="https://img.shields.io/badge/The%20Corporate%20Glitch-'26-E03131?style=for-the-badge">
   <img alt="Team" src="https://img.shields.io/badge/team-CodeX-1B2A49?style=for-the-badge">
   <img alt="College" src="https://img.shields.io/badge/IILM%20University-7048E8?style=for-the-badge">
@@ -171,21 +171,21 @@ The core idea is a loop, not a one-time report. A competitor can copy any single
 
 ## 🧰 Tech stack and architecture
 
-> The stack below is **planned** and may change as we build the prototype.
+> The stack below is the one locked in `docs/DECISIONS.md`. The backend rows are built; the frontend is **planned** (not started). The two pictures below were drawn at the concept stage and may show older tool choices; the table is current.
 
 <p align="center">
   <img src="assets/tech-stack.png" alt="Planned tech stack in six groups: frontend, backend, ML and forecast, language and chatbot, database and auth, data and maps." width="100%">
 </p>
 
-| Layer | Planned tools |
+| Layer | Tools |
 |---|---|
-| **Frontend** | React, Tailwind, HTML5, TypeScript |
-| **Backend** | FastAPI, Node.js, Flask |
-| **ML + forecast** | Python, scikit-learn, Pandas, NumPy |
-| **Language + chatbot** | A hosted, swappable LLM (Gemini, Claude), Hugging Face, LangChain |
-| **Database + auth** | PostgreSQL, Firebase, MongoDB, SQLite |
-| **Data + maps** | OpenStreetMap, Leaflet, data.gov.in, NSS survey data |
-| **DevOps** | GitHub, Docker, Vercel |
+| **Frontend** (planned) | React, TypeScript, Vite, Tailwind CSS, react-i18next, Leaflet |
+| **Backend** | Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, APScheduler |
+| **ML + forecast** | pandas, NumPy, scikit-learn, statsmodels, LightGBM, joblib |
+| **Language + chatbot** | A hosted, swappable LLM behind one interface (Gemini or Claude); multilingual-e5-small embeddings for scheme search; the LLM only explains, code decides |
+| **Database + auth** | SQLite for the prototype (portable SQL for PostgreSQL later); phone OTP (mock in the prototype) |
+| **Data + maps** | SYNTHETIC shop data (labelled); OpenStreetMap counts; one public dataset to check the method (not chosen yet) |
+| **DevOps** | GitHub, GitHub Actions CI, Docker |
 
 ### Request flow and model training
 
@@ -193,7 +193,7 @@ The core idea is a loop, not a one-time report. A competitor can copy any single
   <img src="assets/request-flow.png" alt="Live request flow from the owner's phone through the backend, database, forecast model and chatbot, plus the offline model-training pipeline." width="100%">
 </p>
 
-**Forecast approach (planned).** Start with a simple seasonal baseline, then move to gradient-boosted trees (e.g. XGBoost). The prototype will train on test data and refit on real pilot sales later. Each quarter we compare the forecast with actual sales and fix the model.
+**Forecast approach.** Gradient-boosted trees (LightGBM) give a P10 / P50 / P90 sales range, checked against a seasonal-naive and a peer baseline (DEC-35). The prototype trains on SYNTHETIC data; it would refit on real pilot sales later. Results, including what is not measured yet, are in `docs/EVAL_REPORT.md`. Each quarter we compare the forecast with actual sales and fix the model.
 
 ### Questions we expect
 
@@ -301,9 +301,9 @@ These are **proposed** models, to be validated in the pilot.
 ## 📍 Roadmap
 
 - [x] **Phase 0: Concept and research.** Problem framing, solution design, architecture, competitor review, screening-round submission.
-- [ ] **Phase 1: Prototype (planned).** Onboarding in the owner's language, a set-up form, and a first forecast range on test data.
-- [ ] **Phase 2: The loop (planned).** Daily sales and stock logging, rule-based alerts, and the 3-month re-forecast with grow, hold or pivot advice.
-- [ ] **Phase 3: Funding and support (planned).** Scheme and loan matching, plus the grounded vernacular chatbot.
+- [ ] **Phase 1: Prototype (backend API built; owner app not started).** Onboarding in the owner's language, a set-up form, and a first forecast range on test data.
+- [ ] **Phase 2: The loop (backend API built; owner app not started).** Daily sales and stock logging, rule-based alerts, and the 3-month re-forecast with grow, hold or pivot advice.
+- [ ] **Phase 3: Funding and support (backend built; scheme knowledge base not written yet).** Scheme and loan matching, plus the grounded vernacular chatbot.
 - [ ] **Phase 4: Pilot (planned).** Test in one local area with real shop owners, refit the model on real sales, and measure whether the assumed gain holds.
 
 ---

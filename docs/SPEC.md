@@ -1,6 +1,6 @@
 # SPEC: what we are building and why
 
-> Status: design complete, implementation not started. See `CHECKPOINTS.md` for live progress.
+> Status: design complete; backend API built on SYNTHETIC data, frontend not started. See `CHECKPOINTS.md` for live progress.
 
 ## 1. Problem
 

@@ -8,7 +8,7 @@ You are a coding assistant joining the **Business Sarthi** project. You have no 
 - **Hero idea:** a forecast *before* the owner invests, then a re-forecast and a **grow / hold / pivot** review **every 3 months** from the owner's real sales.
 - **Supporting modules:** location and product-mix guidance, stock and asset tracking, scheme and loan matching, alerts and SOS, and a grounded chatbot that answers in the owner's language.
 - **Origin:** built for *The Corporate Glitch '26* (Builders Hub) by Team CodeX, IILM University. Repository: `github.com/bappadityadas272-beep/Business-Sarthi`.
-- **Honest status:** at the time of writing this is a **concept with documentation only**; no application code exists yet. Always read `docs/CHECKPOINTS.md` for the real status.
+- **Honest status:** a **prototype**: the backend API (forecast, re-forecast, review, stock, alerts, schemes, chatbot) runs on SYNTHETIC data; the frontend is not started. Always read `docs/CHECKPOINTS.md` for the real status.
 
 ## 2. Read order (do this before writing any code)
 

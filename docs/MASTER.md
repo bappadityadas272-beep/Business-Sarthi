@@ -1,5 +1,5 @@
 # Business Sarthi: MASTER (generated)
-> Generated on 2026-11-17 by `tools/build_master.py`. **Do not edit by hand.** Edit the source files, then run `python tools/build_master.py`.
+> Generated on 2026-11-18 by `tools/build_master.py`. **Do not edit by hand.** Edit the source files, then run `python tools/build_master.py`.
 > Contents: `AGENTS.md`, `docs/CHECKPOINTS.md`, `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/ML_PLAN.md`, `docs/DECISIONS.md`, `docs/CHANGELOG.md`.
 
 
@@ -17,7 +17,7 @@ You are a coding assistant joining the **Business Sarthi** project. You have no 
 - **Hero idea:** a forecast *before* the owner invests, then a re-forecast and a **grow / hold / pivot** review **every 3 months** from the owner's real sales.
 - **Supporting modules:** location and product-mix guidance, stock and asset tracking, scheme and loan matching, alerts and SOS, and a grounded chatbot that answers in the owner's language.
 - **Origin:** built for *The Corporate Glitch '26* (Builders Hub) by Team CodeX, IILM University. Repository: `github.com/bappadityadas272-beep/Business-Sarthi`.
-- **Honest status:** at the time of writing this is a **concept with documentation only**; no application code exists yet. Always read `docs/CHECKPOINTS.md` for the real status.
+- **Honest status:** a **prototype**: the backend API (forecast, re-forecast, review, stock, alerts, schemes, chatbot) runs on SYNTHETIC data; the frontend is not started. Always read `docs/CHECKPOINTS.md` for the real status.
 
 ## 2. Read order (do this before writing any code)
 
@@ -232,7 +232,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 # SPEC: what we are building and why
 
-> Status: design complete, implementation not started. See `CHECKPOINTS.md` for live progress.
+> Status: design complete; backend API built on SYNTHETIC data, frontend not started. See `CHECKPOINTS.md` for live progress.
 
 ## 1. Problem
 
@@ -619,7 +619,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 |---|---|---|
 | `POST /api/auth/otp/request`, `POST /api/auth/otp/verify` | Mock OTP login, returns JWT | B |
 | `GET/PUT /api/me` | Profile and language | B |
-| `GET/POST/DELETE /api/consents` | List, give or withdraw consent (`shop_data` required; `benchmarking` and `hosted_llm` optional; DEC-43, DEC-95) | B |
+| `GET/POST/DELETE /api/consents`, `GET /api/consents/history` | List, give or withdraw consent (`shop_data` required; `benchmarking` and `hosted_llm` optional; DEC-43, DEC-95); every give and withdraw, kept | B |
 | `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}` | Create shop from idea; list and read own shops | B |
 | `GET /api/shops/{id}/location-score` | Location score, nearby counts, starter mix | M |
 | `POST /api/shops/{id}/forecast` | Set-up forecast and investment split | M |
