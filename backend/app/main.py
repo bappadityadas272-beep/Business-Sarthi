@@ -16,6 +16,7 @@ from app.api import (
     reviews,
     schemes,
     shops,
+    simulate,
     sos,
     stock,
 )
@@ -36,5 +37,5 @@ app = FastAPI(
     description="Prototype backend. Forecasts are estimates trained on synthetic data.",
 )
 for module in (health, auth, me, shops, forecast, logs, stock, loans, reviews, alerts, notifications, chat, schemes,
-               sos, dev):
+               simulate, sos, dev):
     app.include_router(module.router, prefix="/api")

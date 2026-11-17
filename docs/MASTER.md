@@ -169,7 +169,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | M-07 | Stock advice (ML4) | F3 | P0 | B-06 | DONE | ROP, reorder qty, dead and overstock flags match hand-calculated cases | Hand-calculated cases pass (17 tests). Simulation on synthetic shops: 4.05 vs 9.57 stock-out days per 30 at 0.95x stock, met only after DEC-59 (first version 1.44x, missed) |
 | M-08 | Review engine (ML5) + endpoint | F5 | P0 | M-06, M-07, B-07, D-04 | DONE | 20 labelled scenarios all give the expected decision | All 20 hand-labelled scenarios give the expected decision; no threshold changed. 30 tests. Thresholds are untested assumptions; DEC-66 details await confirmation |
 | M-09 | Alert engine (ML6) | F6 | P0 | B-05, B-07, M-07, D-04 | DONE | Injected dips detected (recall at least 90%); false alarms under 1 per shop per month | Synthetic test shops: recall 95.3% on dips of 35% or deeper within 14 days, 0 false alarms (clean generator; see EVAL_REPORT notes). 17 tests. Not yet wired to the API (B-08, B-09) |
-| M-10 | Expansion simulator (ML9) | F8 | P2 | M-06 | TODO | Returns payback range and P(payback<12m) for 3 options | Assumptions flagged in output |
+| M-10 | Expansion simulator (ML9) | F8 | P2 | M-06 | DONE | Returns payback range and P(payback<12m) for 3 options | Assumptions flagged in output. `app/ml/simulate.py` + `POST /api/shops/{id}/simulate` (DEC-88): 1,000 draws per option over the latest forecast band, payback P10/P50/P90, P(payback < 12 months), extra revenue and profit bands, `assumption: true`, the yaml ranges, margin source. `tests/test_simulate.py` 12 tests, including a hand check against the assumed extremes. Every range is a proposed assumption (DEC-21), not measured; extend_hours has no one-time cost, so its payback is 0 whenever it adds profit (flagged `no_upfront_cost`) |
 | M-11 | Pricing helper (ML10) | F9 | P2 | B-06 | TODO | Flags categories below target margin | |
 
 ## C: Chatbot and schemes
@@ -633,7 +633,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 | `PATCH /api/shops/{id}` | Set or clear `opening_cash` (DEC-65) | B |
 | `POST /api/shops/{id}/reviews/run` | Run review now (also scheduler) | M |
 | `GET /api/shops/{id}/reviews/latest` and `/reviews` | Read reviews | M |
-| `POST /api/shops/{id}/simulate` | Expansion simulator | M |
+| `POST /api/shops/{id}/simulate` | Expansion simulator: payback range and P(payback < 12 months) per option, all ranges assumptions; body `{options?}`; nothing stored (DEC-88) | M |
 | `GET /api/schemes/match?shop_id=` | Matched schemes with sources; optional `state`, `category` (repeatable), `age`, `need`, `language`, never stored (DEC-86, DEC-87) | C |
 | `POST /api/chat` | Chatbot (streams text) | C |
 | `POST /api/sos` | Guided SOS summary: alerts, EMI, last 30 days, rule-based checklist, `share_text` (DEC-83) | B |
@@ -902,7 +902,7 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 
 ## 11. ML9 and ML10 (P2)
 
-- **Expansion simulator:** options such as "add one product line", "extend hours", "second counter". Each option changes the revenue uplift distribution (assumed ranges in `data/rules/expansion.yaml`, flagged as assumptions) and costs; run 1,000 Monte Carlo draws over the re-forecast uncertainty; report payback range and probability that payback is under 12 months.
+- **Expansion simulator:** options such as "add one product line", "extend hours", "second counter". Each option changes the revenue uplift distribution (assumed ranges in `data/rules/expansion.yaml`, flagged as assumptions) and costs; run 1,000 Monte Carlo draws over the re-forecast uncertainty; report payback range and probability that payback is under 12 months. Base revenue, margin and payback rules: DEC-88.
 - **Pricing helper:** compare category margin with target margin from config; flag categories below target; suggest the price change needed to reach the target, with a note that demand may react.
 
 ## 12. Reproducibility and model files
@@ -1019,6 +1019,7 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-85 | 2026-11-17 | Scheme embeddings (C-02), **chosen by the human**: `intfloat/multilingual-e5-small` through sentence-transformers is an optional extra (`pip install -e ".[embed]"`, Docker build arg `EMBED=1`, CPU torch). The default image and CI use a deterministic fallback embedder (hashed character 3- to 5-grams, 1024 dims) that is labelled in every index card and every match (`embedder_is_fallback`). `KB_EMBEDDER=auto` picks e5 when installed. Vectors go to `backend/data/kb_index/` (git-ignored) with a card holding the KB file hash; a stale or missing index is rebuilt in memory. The model is never committed. | Keeps the default image small and the tests offline and deterministic; the KB has a handful of entries. | e5 in the default image (about 1 GB more, model download in CI); FAISS (not needed at this size). | ACTIVE |
 | DEC-86 | 2026-11-17 | Scheme profile fields (C-03), **chosen by the human**: state, category (several allowed) and age are optional request fields of `GET /api/schemes/match` and are never stored. Sector comes from the shop type (kirana = retail/trading) and investment from the shop budget. A field not given is "unknown": the scheme stays in the list and the requirement is shown under "please tell us or confirm". | Collects nothing sensitive (caste category, age) without a separate consent purpose. | Store them on the profile (needs a consent purpose and a migration); ask in chat before matching. | ACTIVE |
 | DEC-87 | 2026-11-17 | Scheme matcher and answer (C-03), **the human asked Claude to choose; Claude recommended this**: KB format = ML_PLAN section 9 with explicit fields (`sectors`, `min_investment`, `max_investment`, `age_min`, `age_max`, `categories`, `states`, each `null` = anyone, plus `other_requirements` that are always "please confirm"; type `registration` added for Udyam-style entries). Each check is pass, fail or unknown; one fail removes the scheme. The rest are ranked by embedding similarity to the question (or "<shop type> shop"), then fewer unknowns, then id; top 3. Entries with `verified:false` are shown with an "unverified" label (R-04). The chat answer for schemes is the code template only, with **no LLM call**: names, reasons, links and dates come straight from the KB. | AGENTS rule 3: scheme facts are where a rephrased word does the most harm; the template already answers in Hindi, Hinglish or English. | LLM rephrases the template with the guard checking names, ids and links (more natural, one LLM call per answer, more fallbacks); hide unverified entries. | ACTIVE |
+| DEC-88 | 2026-11-17 | Expansion simulator (M-10), **chosen by the human**: the base revenue of each draw comes from the shop's latest stored forecast (re-forecast or set-up, newest first): mean P10/P50/P90 per 30 days of the next `months_ahead` (3) months that have not ended, drawn as a split normal through those three points, clipped at 0. Extra profit = base x uplift x margin - monthly cost; payback = one-time cost / extra profit (none when extra profit <= 0). Margin = the shop's own (sales - purchases) / sales over the last 90 days when at least 30 days are logged and the value is between 0 and 1, else the 12.8% assumption (DEC-48), labelled `own_logs` or `assumed` with the reason. Payback quantiles above `payback_max_months` (60) are shown as none. Seeded by shop and forecast id, so the same forecast gives the same answer; nothing is stored. | ML_PLAN section 11 asks for Monte Carlo over the forecast uncertainty; the own margin keeps a high- or low-margin shop honest. | Last 90 days of sales as a fixed base (ignores the uncertainty); always the 12.8% assumption. | ACTIVE |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -1030,6 +1031,17 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: M-10 expansion simulator
+
+- `POST /api/shops/{id}/simulate` (`app/ml/simulate.py`, DEC-88): for each option in `data/rules/expansion.yaml`,
+  1,000 draws over the shop's latest forecast band give a payback range (P10/P50/P90 months) and the chance of
+  payback within 12 months, plus extra revenue and profit bands. Uses the shop's own margin from 90 days of logs when
+  at least 30 days are logged, else the 12.8% assumption, and says which.
+- All uplift and cost ranges are proposed assumptions (DEC-21), returned with `assumption: true`. Nothing is stored.
+- New fields in `expansion.yaml`: `months_ahead`, `margin_window_days`, `margin_min_logged_days`.
+- With the assumed ranges and a 3 lakh/month shop, only "add a product line" pays back in about a year; "extend hours"
+  and "second counter" mostly do not. That follows from the assumed costs, not from data.
 
 ## 2026-11-17: C-08 smoke set and exit code
 

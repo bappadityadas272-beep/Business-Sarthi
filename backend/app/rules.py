@@ -324,6 +324,9 @@ class ExpansionOption(_Strict):
 class Expansion(_Header):
     draws: int = Field(ge=100)
     payback_target_months: int = Field(gt=0)
+    months_ahead: int = Field(ge=1, le=12)                 # forecast months that form the base band (DEC-88)
+    margin_window_days: int = Field(ge=7)                  # own gross margin from this many days of logs
+    margin_min_logged_days: int = Field(ge=1)              # fewer logged days: use the assumed margin
     options: dict[str, ExpansionOption] = Field(min_length=1)
 
 

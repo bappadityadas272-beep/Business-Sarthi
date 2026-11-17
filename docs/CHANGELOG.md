@@ -2,6 +2,17 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: M-10 expansion simulator
+
+- `POST /api/shops/{id}/simulate` (`app/ml/simulate.py`, DEC-88): for each option in `data/rules/expansion.yaml`,
+  1,000 draws over the shop's latest forecast band give a payback range (P10/P50/P90 months) and the chance of
+  payback within 12 months, plus extra revenue and profit bands. Uses the shop's own margin from 90 days of logs when
+  at least 30 days are logged, else the 12.8% assumption, and says which.
+- All uplift and cost ranges are proposed assumptions (DEC-21), returned with `assumption: true`. Nothing is stored.
+- New fields in `expansion.yaml`: `months_ahead`, `margin_window_days`, `margin_min_logged_days`.
+- With the assumed ranges and a 3 lakh/month shop, only "add a product line" pays back in about a year; "extend hours"
+  and "second counter" mostly do not. That follows from the assumed costs, not from data.
+
 ## 2026-11-17: C-08 smoke set and exit code
 
 - `eval/chat_eval.py` now exits 1 below the 90% groundedness target (2 for a bad question file) and takes `--smoke`.

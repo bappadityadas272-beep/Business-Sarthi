@@ -154,7 +154,7 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 
 ## 11. ML9 and ML10 (P2)
 
-- **Expansion simulator:** options such as "add one product line", "extend hours", "second counter". Each option changes the revenue uplift distribution (assumed ranges in `data/rules/expansion.yaml`, flagged as assumptions) and costs; run 1,000 Monte Carlo draws over the re-forecast uncertainty; report payback range and probability that payback is under 12 months.
+- **Expansion simulator:** options such as "add one product line", "extend hours", "second counter". Each option changes the revenue uplift distribution (assumed ranges in `data/rules/expansion.yaml`, flagged as assumptions) and costs; run 1,000 Monte Carlo draws over the re-forecast uncertainty; report payback range and probability that payback is under 12 months. Base revenue, margin and payback rules: DEC-88.
 - **Pricing helper:** compare category margin with target margin from config; flag categories below target; suggest the price change needed to reach the target, with a note that demand may react.
 
 ## 12. Reproducibility and model files

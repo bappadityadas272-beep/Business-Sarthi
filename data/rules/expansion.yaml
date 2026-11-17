@@ -6,6 +6,9 @@ source: "proposed; options from ML_PLAN section 11"
 assumption: true
 draws: 1000
 payback_target_months: 12
+months_ahead: 3                 # DEC-88: base = mean P10/P50/P90 of the next 3 forecast months
+margin_window_days: 90          # DEC-88: the shop's own gross margin from the last 90 days of logs ...
+margin_min_logged_days: 30      # ... if at least 30 days are logged; else forecast_assumptions.yaml gross_margin
 options:
   add_product_line:
     uplift: {low: 0.03, mode: 0.05, high: 0.10}
