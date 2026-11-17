@@ -8,7 +8,9 @@ from app.models import Consent
 
 SHOP_DATA = "shop_data"            # required: store the shop's data and use it for this owner's forecasts, reviews, alerts
 BENCHMARKING = "benchmarking"      # optional: anonymised peer comparison later; no feature uses it yet
-PURPOSES = {SHOP_DATA: {"required": True}, BENCHMARKING: {"required": False}}
+HOSTED_LLM = "hosted_llm"          # optional (DEC-95): chat may send the redacted question and the shop figures it
+                                   # needs to the hosted LLM provider; without it chat answers with templates only
+PURPOSES = {SHOP_DATA: {"required": True}, BENCHMARKING: {"required": False}, HOSTED_LLM: {"required": False}}
 
 
 def active(db: Session, user_id: int, purpose: str) -> Consent | None:

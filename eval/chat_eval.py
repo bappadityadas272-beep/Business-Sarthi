@@ -41,7 +41,7 @@ from app.llm import client as llm
 from app.llm import guard
 from app.llm.router import INTENTS, REFUSALS
 from app.models import Shop, User
-from app.services import chat, clock
+from app.services import chat, clock, consent
 
 DEFAULT_FILE = Path(__file__).resolve().parent / "chat_eval.jsonl"
 SHOPS = {"ramesh": "+919000000001", "sunita": "+919000000002"}
@@ -142,6 +142,7 @@ def run(items: list[dict], client: llm.LLMClient, **seed_kw) -> list[dict]:
             owners = {}
             for name, phone in SHOPS.items():
                 user = db.query(User).filter(User.phone == phone).one()
+                consent.give(db, user.id, consent.HOSTED_LLM)     # fictional owner; the LLM path is what is measured
                 owners[name] = (user.id, db.query(Shop).filter(Shop.user_id == user.id).one())
             for it in items:
                 uid, shop = owners[it.get("shop", "ramesh")]

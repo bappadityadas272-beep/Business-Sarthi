@@ -31,12 +31,13 @@ def test_give_consent_then_shop_creation_works(client, auth_headers):
     assert client.post("/api/shops", headers=auth_headers, json=SHOP).status_code == 201
 
 
-def test_list_shows_both_purposes(client, auth_headers):
+def test_list_shows_every_purpose(client, auth_headers):
     client.post("/api/consents", headers=auth_headers, json={"purpose": "shop_data"})
     got = {c["purpose"]: c for c in client.get("/api/consents", headers=auth_headers).json()}
-    assert set(got) == {"shop_data", "benchmarking"}
+    assert set(got) == {"shop_data", "benchmarking", "hosted_llm"}                # hosted_llm: DEC-95
     assert got["shop_data"]["active"] is True and got["benchmarking"]["active"] is False
-    assert got["benchmarking"]["required"] is False
+    assert got["benchmarking"]["required"] is False and got["hosted_llm"]["required"] is False
+    assert got["hosted_llm"]["active"] is False                                    # never on by default
 
 
 def test_withdraw_blocks_new_writes_keeps_data_and_history(client, auth_headers):

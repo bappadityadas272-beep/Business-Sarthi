@@ -2,7 +2,9 @@
 rephrases the template built from the same facts (DEC-06, DEC-78), and the guard checks the result (DEC-76).
 
 Smalltalk, refusals, out-of-scope and every scheme answer are templates with no LLM call (DEC-77, DEC-87).
-Each turn is answered on its own; earlier turns are stored but not sent (DEC-77). Nothing here logs the question,
+Without the optional `hosted_llm` consent every answer is a template and the provider is never called (DEC-95).
+Each turn is answered on its own; earlier turns are stored but not sent (DEC-77). Phone, Aadhaar and PAN numbers are
+redacted from the question first, so they reach neither the LLM nor the database (DEC-94). Nothing here logs the question,
 the prompt or the answer: only intent, language and outcome kinds.
 """
 import json
@@ -17,7 +19,7 @@ from app.llm import guard, prompts, templates, tools
 from app.llm.language import detect
 from app.llm.router import route
 from app.models import ChatMessage, Shop
-from app.services import clock
+from app.services import clock, consent, privacy
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +31,7 @@ class Turn:
     text: str
     language: str
     intent: str
-    guard: str                  # passed | failed | template | llm_unavailable
+    guard: str                  # passed | failed | template | llm_unavailable | no_llm_consent
     sources: list[dict] = field(default_factory=list)
     failures: list[str] = field(default_factory=list)
     message_id: int | None = None
@@ -64,16 +66,21 @@ def run_tools(db: Session, user_id: int, shop: Shop, intent: str, wanted: list[t
 
 def answer(db: Session, user_id: int, shop: Shop, question: str, *, client: llm.LLMClient | None = None,
            today: date | None = None, cache: llm.AnswerCache | None = None) -> Turn:
+    question = privacy.redact_identifiers(question)       # DEC-94: before the router, the LLM, the cache and the DB
     today = today or clock.today()
     cache = llm.answer_cache if cache is None else cache
-    client = client or llm.get_client()
+    # DEC-95: no `hosted_llm` consent = no provider call at all, not even to route; rules and templates answer
+    llm_ok = consent.active(db, user_id, consent.HOSTED_LLM) is not None
+    client = (client or llm.get_client()) if llm_ok else None
     lang = detect(question)
     r = route(question, client)
     outs = run_tools(db, user_id, shop, r.intent, r.tools, question, today, lang)
     draft = templates.render(r.intent, outs, lang, r.refusal)
     turn = Turn(draft, lang, r.intent, "template", sources_of(outs), refusal=r.refusal, via=r.via)
 
-    if r.intent in LLM_INTENTS and not r.refusal:
+    if r.intent in LLM_INTENTS and not r.refusal and client is None:
+        turn.guard = "no_llm_consent"
+    elif r.intent in LLM_INTENTS and not r.refusal and client is not None:
         system, msgs = prompts.build(r.intent, lang, question, outs, draft)
         facts_json = json.dumps(prompts.facts_payload(r.intent, lang, "", outs), ensure_ascii=False, sort_keys=True,
                                 default=str)

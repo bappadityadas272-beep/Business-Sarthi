@@ -195,6 +195,8 @@ def step6(api: Api, ctx: dict) -> str:
 def step7(api: Api, ctx: dict) -> str:
     api.login(RAMESH)
     sid = api.own_shop()["id"]
+    # DEC-95: the hosted LLM may rephrase answers only after this optional opt-in; without it, templates only
+    api.call("POST", "/consents", ok=(200, 201), json={"purpose": "hosted_llm"})
     notes = []
     for q, lang in (("Is mahine ka profit kitna hai?", "hinglish"), ("इस महीने का मुनाफा कितना है?", "hi"),
                     ("What is my profit this month?", "en")):

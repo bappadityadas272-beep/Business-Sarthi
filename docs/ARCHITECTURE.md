@@ -250,7 +250,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 |---|---|---|
 | `POST /api/auth/otp/request`, `POST /api/auth/otp/verify` | Mock OTP login, returns JWT | B |
 | `GET/PUT /api/me` | Profile and language | B |
-| `GET/POST/DELETE /api/consents` | List, give or withdraw consent (`shop_data` required, `benchmarking` optional; DEC-43) | B |
+| `GET/POST/DELETE /api/consents` | List, give or withdraw consent (`shop_data` required; `benchmarking` and `hosted_llm` optional; DEC-43, DEC-95) | B |
 | `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}` | Create shop from idea; list and read own shops | B |
 | `GET /api/shops/{id}/location-score` | Location score, nearby counts, starter mix | M |
 | `POST /api/shops/{id}/forecast` | Set-up forecast and investment split | M |

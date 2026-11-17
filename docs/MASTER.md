@@ -128,7 +128,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | DONE | `pytest` passes a health test; `uvicorn` serves `/docs` | Runs in Docker (DEC-20): `docker compose run --rm backend pytest` |
 | S-03 | Frontend skeleton: Vite + React + TS + Tailwind, router, empty pages | all | P0 | S-01 | TODO | `npm run build` succeeds; home page renders | |
 | S-04 | Makefile (`setup`, `dev`, `test`, `lint`, `train`, `seed`) | all | P1 | S-02, S-03 | IN_PROGRESS | `make test` runs both test suites | 2026-11-17, DEC-92: backend half done (`setup`, `dev`, `test`, `lint`, `typecheck`, `cov`, `train`, `seed`, `demo-e2e` and the earlier targets; on a host with make they hand themselves to Docker, `setup` and `dev` run `docker compose build` / `up`). Frontend targets and the frontend suite wait for S-03 |
-| S-05 | GitHub Actions CI (lint, type check, tests) | all | P1 | S-04 | TODO | CI green on a pull request | |
+| S-05 | GitHub Actions CI (lint, type check, tests) | all | P1 | S-04 | DONE | CI green on a pull request | 2026-11-17, DEC-93, DEC-96: `.github/workflows/ci.yml` (ruff, mypy, train, tests with coverage gate, API e2e demo) green on push run 44139472981 of `ca15816`; counted on the push run, no PR opened (DEC-96). Uses the backend half of S-04 (S-04 itself waits for S-03) |
 
 ## D: Data and knowledge
 
@@ -208,11 +208,11 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| Q-01 | Backend test coverage at least 70% on services and ml | all | P1 | M-09, B-11 | TODO | Coverage report in CI | |
-| Q-02 | ML evaluation report committed to `docs/EVAL_REPORT.md` | F1,F5 | P1 | M-04, M-06, M-08, M-09 | TODO | All section 8 targets reported honestly, including misses | |
+| Q-01 | Backend test coverage at least 70% on services and ml | all | P1 | M-09, B-11 | DONE | Coverage report in CI | 2026-11-17: `make cov` in CI fails below 70% on `app/services` + `app/ml`; 97.5% measured (DEC-93) |
+| Q-02 | ML evaluation report committed to `docs/EVAL_REPORT.md` | F1,F5 | P1 | M-04, M-06, M-08, M-09 | DONE | All section 8 targets reported honestly, including misses | 2026-11-17: `make eval` writes every part plus a summary table (`eval/review_eval.py`): 7 MET on SYNTHETIC data or hand-written cases, ML2 pinball PARTLY ("unconstrained baseline" undefined), ML7, ML8 and the public-data check NOT MEASURED (need D-02, D-03, the 30 chat questions). No real-world accuracy measured |
 | Q-03 | End-to-end demo test (Playwright) for demo script steps 1 to 8 | all | P1 | F-04, F-08, F-10 | TODO | Passes headless in CI | |
 | Q-04 | Low-end phone and accessibility check (Lighthouse, 360 px width, font sizes) | all | P2 | F-06 | TODO | Lighthouse accessibility at least 90 | |
-| Q-05 | Privacy self-review against ARCHITECTURE section 11 | all | P1 | B-11 | TODO | Checklist in `docs/PRIVACY_CHECK.md` all ticked | Not legal advice |
+| Q-05 | Privacy self-review against ARCHITECTURE section 11 | all | P1 | B-11 | DONE | Checklist in `docs/PRIVACY_CHECK.md` all ticked | Not legal advice. 2026-11-17: 14 of 14 ticked, each with code and test; two gaps found and fixed: chat redaction (DEC-94) and the optional `hosted_llm` consent (DEC-95); access sweep over every OpenAPI operation (`test_access_sweep.py`). Legal review listed for before a real pilot |
 
 ## R: Release
 
@@ -619,7 +619,7 @@ Other tables (columns kept minimal): `stock_item(shop_id, name, category, unit, 
 |---|---|---|
 | `POST /api/auth/otp/request`, `POST /api/auth/otp/verify` | Mock OTP login, returns JWT | B |
 | `GET/PUT /api/me` | Profile and language | B |
-| `GET/POST/DELETE /api/consents` | List, give or withdraw consent (`shop_data` required, `benchmarking` optional; DEC-43) | B |
+| `GET/POST/DELETE /api/consents` | List, give or withdraw consent (`shop_data` required; `benchmarking` and `hosted_llm` optional; DEC-43, DEC-95) | B |
 | `POST /api/shops`, `GET /api/shops`, `GET /api/shops/{id}` | Create shop from idea; list and read own shops | B |
 | `GET /api/shops/{id}/location-score` | Location score, nearby counts, starter mix | M |
 | `POST /api/shops/{id}/forecast` | Set-up forecast and investment split | M |
@@ -1029,6 +1029,9 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 | DEC-91 | 2026-11-17 | Dev routes with DEV_MODE off, **chosen by the human** (changes the 403 in DEC-69): every `/api/dev` path, including `GET /api/dev/clock`, answers 404 `not_found` exactly like an unknown path, before login, body or input checks, and the dev routes are left out of `/openapi.json` and `/docs`. | A refused route still tells a caller it exists. | 404 but still documented; keep 403 `dev_mode_off`. | ACTIVE |
 | DEC-92 | 2026-11-17 | S-04 Makefile, **chosen by the human**: the backend half is built now (`setup`, `dev`, `test`, `lint`, `typecheck`, `cov`, `train`, `seed`, `demo-e2e`, plus the earlier targets); S-04 stays IN_PROGRESS with its acceptance line unchanged (`make test` runs both suites) until S-03 adds the frontend suite. | S-03 is out of scope this session; changing the acceptance line would hide the missing half. | Split into S-04a; redefine S-04 as backend-only. | ACTIVE |
 | DEC-93 | 2026-11-17 | CI and quality gates, **chosen by the human**: GitHub Actions (`.github/workflows/ci.yml`) on pushes to main and on pull requests runs the same Docker image as local work: `make lint`, `make typecheck` (mypy, basic mode, `backend/app`, untyped libraries ignored; the 60 errors found were fixed in the code, no `type: ignore`), `make train` (model files are never committed), `make cov` (pytest-cov over `app/services` and `app/ml`, fails below 70%, Q-01) and `make demo-e2e` (API on a fresh throw-away database, `scripts/demo_run.py` steps 1 to 8). CI uses `LLM_PROVIDER=stub` and has no secrets. Taken by the assistant and to be confirmed: the e2e run counts step 7's known MISSED as a pass (non-strict), because the scheme knowledge base is the team's (DEC-74); the demo driver logs each phone in once per run to stay inside the OTP rate limit (DEC-90). Tool versions pinned to what pip resolved on 2026-11-17: mypy 2.4.1, pytest-cov 7.1.0, types-PyYAML 6.0.12.20261113. | One environment for local runs and CI; no key can leak from CI. | mypy strict; pyright; plain Python on the runner; coverage report without a gate. | ACTIVE |
+| DEC-94 | 2026-11-17 | Chat redaction, **chosen by the human**: `privacy.redact_identifiers` replaces 10-digit Indian mobile numbers (with +91, 0, space or dash), 12-digit Aadhaar numbers and PAN numbers with `[redacted]` as the first step of `chat.answer`, before the router, the LLM, the answer cache and the database. Amounts, years and other numbers stay. | Q-05 found that a phone or Aadhaar typed into chat went to the hosted LLM and into `chat_turns`. Regex only: numbers in words or Devanagari digits and other identifiers are not caught (said in PRIVACY_CHECK). | Q-05 |
+| DEC-95 | 2026-11-17 | Third consent purpose `hosted_llm`, optional, **chosen by the human**: only with it may chat send the redacted question and the shop figures it needs to the hosted LLM provider. Without it the provider is never called (not even to route); rules route, and every answer is the code-made template with guard `no_llm_consent`. The demo driver and the chat evaluations give it for the fictional owners; the seed does not. Extends DEC-43. | Sending shop figures to a third-party provider is a separate purpose from storing them (DPDP spirit: purpose-specific consent). Chat still works without it, as when the provider is down (DEC-73). | Q-05 |
+| DEC-96 | 2026-11-17 | S-05 acceptance "CI runs on a pull request and turns green", **chosen by the human**: counted on the push run 44139472981 of `ca15816` (all steps green); the workflow also triggers on `pull_request`, but no pull request was opened (single-branch work this session). | Same workflow and job on both triggers; opening a throwaway PR only to tick the line adds nothing. | S-05 |
 
 <!-- END docs/DECISIONS.md -->
 
@@ -1040,6 +1043,25 @@ Method check on the **public dataset**: show that quantile GBM plus conformal ca
 # CHANGELOG
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
+
+## 2026-11-17: Q-05 privacy self-review, Q-02 evaluation report, Q-01 coverage, S-05 done
+
+- **Q-05** `docs/PRIVACY_CHECK.md`: 14 items from ARCHITECTURE section 11, each with the code and the test that
+  proves it; all ticked; not legal advice; a legal review is listed for before any real pilot. Two gaps found and fixed:
+  - **DEC-94** chat redaction: `privacy.redact_identifiers` replaces mobile, Aadhaar and PAN numbers with
+    `[redacted]` before the router, the LLM, the cache and `chat_turns`. Regex only (numbers in words or Devanagari
+    digits are not caught).
+  - **DEC-95** optional consent purpose `hosted_llm`: without it chat never calls the provider (rules route,
+    templates answer, guard `no_llm_consent`). `scripts/demo_run.py` step 7, `eval/chat_eval.py` and
+    `eval/chat_live_check.py` give it for the fictional owners; the seed does not. **Frontend (F-*) must word this
+    consent.**
+- `backend/tests/test_access_sweep.py`: login, ownership (404 like a missing id) and consent (403) checked on every
+  operation in the OpenAPI schema, so a new route cannot skip them; plus no identity-document columns and DEC-86
+  (scheme profile fields never stored).
+- **Q-02** `eval/review_eval.py` (`make eval-review`, part of `make eval`): ML5 20/20 MET on hand-written cases,
+  ML7, ML8 and the public-data check listed as NOT MEASURED with owners, and a summary table of every ML_PLAN
+  section 8 target in `docs/EVAL_REPORT.md`. ML2 pinball is PARTLY: the "unconstrained baseline" is not defined.
+- **Q-01** DONE: coverage gate in CI, 97.5% on services and ml. **S-05** DONE on push run 44139472981 (DEC-96).
 
 ## 2026-11-17: S-04 (backend half), S-05 CI, API end-to-end demo run
 

@@ -28,7 +28,7 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 | S-02 | Backend skeleton: FastAPI app, config loader, `/api/health`, pyproject with pinned deps | all | P0 | S-01 | DONE | `pytest` passes a health test; `uvicorn` serves `/docs` | Runs in Docker (DEC-20): `docker compose run --rm backend pytest` |
 | S-03 | Frontend skeleton: Vite + React + TS + Tailwind, router, empty pages | all | P0 | S-01 | TODO | `npm run build` succeeds; home page renders | |
 | S-04 | Makefile (`setup`, `dev`, `test`, `lint`, `train`, `seed`) | all | P1 | S-02, S-03 | IN_PROGRESS | `make test` runs both test suites | 2026-11-17, DEC-92: backend half done (`setup`, `dev`, `test`, `lint`, `typecheck`, `cov`, `train`, `seed`, `demo-e2e` and the earlier targets; on a host with make they hand themselves to Docker, `setup` and `dev` run `docker compose build` / `up`). Frontend targets and the frontend suite wait for S-03 |
-| S-05 | GitHub Actions CI (lint, type check, tests) | all | P1 | S-04 | TODO | CI green on a pull request | |
+| S-05 | GitHub Actions CI (lint, type check, tests) | all | P1 | S-04 | DONE | CI green on a pull request | 2026-11-17, DEC-93, DEC-96: `.github/workflows/ci.yml` (ruff, mypy, train, tests with coverage gate, API e2e demo) green on push run 44139472981 of `ca15816`; counted on the push run, no PR opened (DEC-96). Uses the backend half of S-04 (S-04 itself waits for S-03) |
 
 ## D: Data and knowledge
 
@@ -108,11 +108,11 @@ Column key: **Feat** = feature from `SPEC.md`; **Depends** = checkpoint IDs that
 
 | ID | Title | Feat | Pri | Depends | Status | Acceptance | Notes |
 |---|---|---|---|---|---|---|---|
-| Q-01 | Backend test coverage at least 70% on services and ml | all | P1 | M-09, B-11 | TODO | Coverage report in CI | |
-| Q-02 | ML evaluation report committed to `docs/EVAL_REPORT.md` | F1,F5 | P1 | M-04, M-06, M-08, M-09 | TODO | All section 8 targets reported honestly, including misses | |
+| Q-01 | Backend test coverage at least 70% on services and ml | all | P1 | M-09, B-11 | DONE | Coverage report in CI | 2026-11-17: `make cov` in CI fails below 70% on `app/services` + `app/ml`; 97.5% measured (DEC-93) |
+| Q-02 | ML evaluation report committed to `docs/EVAL_REPORT.md` | F1,F5 | P1 | M-04, M-06, M-08, M-09 | DONE | All section 8 targets reported honestly, including misses | 2026-11-17: `make eval` writes every part plus a summary table (`eval/review_eval.py`): 7 MET on SYNTHETIC data or hand-written cases, ML2 pinball PARTLY ("unconstrained baseline" undefined), ML7, ML8 and the public-data check NOT MEASURED (need D-02, D-03, the 30 chat questions). No real-world accuracy measured |
 | Q-03 | End-to-end demo test (Playwright) for demo script steps 1 to 8 | all | P1 | F-04, F-08, F-10 | TODO | Passes headless in CI | |
 | Q-04 | Low-end phone and accessibility check (Lighthouse, 360 px width, font sizes) | all | P2 | F-06 | TODO | Lighthouse accessibility at least 90 | |
-| Q-05 | Privacy self-review against ARCHITECTURE section 11 | all | P1 | B-11 | TODO | Checklist in `docs/PRIVACY_CHECK.md` all ticked | Not legal advice |
+| Q-05 | Privacy self-review against ARCHITECTURE section 11 | all | P1 | B-11 | DONE | Checklist in `docs/PRIVACY_CHECK.md` all ticked | Not legal advice. 2026-11-17: 14 of 14 ticked, each with code and test; two gaps found and fixed: chat redaction (DEC-94) and the optional `hosted_llm` consent (DEC-95); access sweep over every OpenAPI operation (`test_access_sweep.py`). Legal review listed for before a real pilot |
 
 ## R: Release
 

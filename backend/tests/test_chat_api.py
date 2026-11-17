@@ -21,6 +21,8 @@ def demo(client, db_factory, synth_small, model_small):
         res = sd.seed(db, clock.today(), demo_dir=synth_small / "demo", model=model_small)
         shops = {db.get(Shop, s["shop_id"]).user_id: s["shop_id"] for s in res["shops"]}
     headers = {p: login(client, p) for p in (RAMESH, SUNITA)}
+    for h in headers.values():                                    # DEC-95: these tests are about the LLM path
+        assert client.post("/api/consents", headers=h, json={"purpose": "hosted_llm"}).status_code == 201
     client.post("/api/dev/advance-time", headers=headers[RAMESH], json={"days": 2})       # reviews exist
     with db_factory() as db:
         by_phone = {}
@@ -163,3 +165,69 @@ def test_chunks_keep_the_text():
     from app.api.chat import chunks
     text = "इस महीने (1 नवंबर से 16 नवंबर) मुनाफा ₹25,456 है। EMI ₹2,000."
     assert "".join(chunks(text)) == text and len(list(chunks(text))) > 1
+
+
+@pytest.mark.parametrize(("text", "kept"), [
+    ("mera number 9876543210 hai", "mera number [redacted] hai"),
+    ("call +91 98765 43210 please", "call [redacted] please"),
+    ("phone 09876543210", "phone [redacted]"),
+    ("Aadhaar 2345 6789 0123 hai", "Aadhaar [redacted] hai"),
+    ("aadhaar 234567890123", "aadhaar [redacted]"),
+    ("PAN ABCDE1234F hai", "PAN [redacted] hai"),
+    ("pan abcde1234f", "pan [redacted]"),
+])
+def test_identifiers_are_redacted(text, kept):
+    from app.services.privacy import redact_identifiers
+    assert redact_identifiers(text) == kept
+
+
+@pytest.mark.parametrize("text", ["Is mahine ka profit kitna hai?", "loan ₹5,00,000 ka EMI kitna?",
+                                  "sales 12500 aur kharcha 3400", "मेरी बिक्री 45000 है", "2026 mein grow karu?",
+                                  "order 1234567 ka stock"])
+def test_amounts_and_ordinary_text_stay(text):
+    from app.services.privacy import redact_identifiers
+    assert redact_identifiers(text) == text
+
+
+class Spy(StubClient):
+    def __init__(self):
+        super().__init__()
+        self.seen: list[str] = []
+
+    def generate(self, system, messages, *a, **k):
+        self.seen.append(system + json.dumps(messages, ensure_ascii=False))
+        return super().generate(system, messages, *a, **k)
+
+
+def test_a_typed_phone_or_aadhaar_reaches_neither_the_llm_nor_the_database(ramesh, db_factory):
+    uid, sid = ramesh
+    spy = Spy()
+    q = "Mera number 9876543210 aur Aadhaar 2345 6789 0123 hai. Is mahine ka profit kitna hai?"
+    with db_factory() as db:
+        turn = chat_service.answer(db, uid, db.get(Shop, sid), q, client=spy, cache=llm.AnswerCache())
+        stored = db.scalars(select(ChatMessage.text).where(ChatMessage.shop_id == sid)).all()
+    assert spy.calls >= 1 and turn.intent == "my_numbers"
+    for blob in [*spy.seen, *stored]:
+        assert "9876543210" not in blob and "2345 6789 0123" not in blob
+    assert any("[redacted]" in s for s in stored)
+
+
+def test_without_the_hosted_llm_consent_the_provider_is_never_called(ramesh, client, demo, db_factory):
+    uid, sid = ramesh
+    headers = demo[RAMESH][0]
+    assert client.delete("/api/consents", headers=headers, params={"purpose": "hosted_llm"}).status_code == 200
+    spy = Spy()
+    with db_factory() as db:
+        shop = db.get(Shop, sid)
+        off = chat_service.answer(db, uid, shop, "Is mahine ka profit kitna hai?", client=spy, cache=llm.AnswerCache())
+        odd = chat_service.answer(db, uid, shop, "zxqv plorb?", client=spy, cache=llm.AnswerCache())   # router fallback
+    assert spy.calls == 0 and spy.seen == []
+    assert off.intent == "my_numbers" and off.guard == "no_llm_consent" and "₹" in off.text
+    assert odd.guard in ("template", "no_llm_consent")
+    r, t = ask(client, headers, sid, "Is mahine ka profit kitna hai?")
+    assert r.status_code == 200 and t["done"]["guard"] == "no_llm_consent"
+
+
+def test_hosted_llm_consent_is_optional_and_listed(client, auth_headers):
+    cons = {c["purpose"]: c for c in client.get("/api/consents", headers=auth_headers).json()}
+    assert cons["hosted_llm"]["required"] is False and cons["hosted_llm"]["active"] is False

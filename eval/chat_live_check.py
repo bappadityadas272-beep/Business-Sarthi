@@ -21,7 +21,7 @@ from app.config import get_settings
 from app.db import Base, make_engine
 from app.llm import client as llm
 from app.models import Shop, User
-from app.services import chat, clock
+from app.services import chat, clock, consent
 
 DEMO_PHONE = "+919000000001"          # Ramesh Kirana (synthetic)
 QUESTIONS = [
@@ -51,6 +51,7 @@ def main() -> int:
         with session() as db:
             sd.seed(db, clock.today())
             user = db.query(User).filter(User.phone == DEMO_PHONE).one()
+            consent.give(db, user.id, consent.HOSTED_LLM)         # fictional owner; the live provider is what is checked
             shop = db.query(Shop).filter(Shop.user_id == user.id).one()
             for q in QUESTIONS:
                 turn = chat.answer(db, user.id, shop, q, client=client, cache=llm.AnswerCache())

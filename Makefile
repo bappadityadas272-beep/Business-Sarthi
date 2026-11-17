@@ -3,7 +3,7 @@
 #   On a host with make:             make <target>   (hands itself to Docker automatically)
 # Start and stop the API with `docker compose up` / `docker compose down` (docs/RUNBOOK.md).
 SYNTH := data/synthetic/out
-TARGETS := help setup dev typecheck cov synth train seed seed-if-missing migrate test lint eval eval-forecast eval-reforecast eval-stock \
+TARGETS := help setup dev typecheck cov synth train seed seed-if-missing migrate test lint eval eval-forecast eval-reforecast eval-stock eval-review \
            eval-alerts eval-chat eval-chat-smoke chat-live demo demo-e2e backup restore reset-db kb-check kb-index
 .PHONY: $(TARGETS)
 
@@ -27,7 +27,7 @@ help:
 	@echo "make typecheck   mypy over backend/app (DEC-93)"
 	@echo "make cov         test suite with coverage of app/services and app/ml; fails below 70% (Q-01, DEC-93)"
 	@echo "make lint        ruff over backend/, data/synthetic/ and eval/"
-	@echo "make eval        every evaluation (forecast, re-forecast, stock, alerts); rewrites docs/EVAL_REPORT.md"
+	@echo "make eval        every evaluation (forecast, re-forecast, stock, alerts, review + target summary); rewrites docs/EVAL_REPORT.md"
 	@echo "make synth       regenerate SYNTHETIC data (+ demo shops) in $(SYNTH)/"
 	@echo "make train       train and calibrate ML2 into backend/data/models/ml2/ (runs synth if needed)"
 	@echo "make migrate     apply database migrations"
@@ -61,7 +61,10 @@ seed: $(SYNTH)/daily.csv migrate
 seed-if-missing: $(SYNTH)/daily.csv migrate
 	cd backend && python -m app.seed --if-missing
 
-eval: eval-forecast eval-reforecast eval-stock eval-alerts
+eval: eval-forecast eval-reforecast eval-stock eval-alerts eval-review
+
+eval-review:
+	cd backend && python ../eval/review_eval.py --write
 
 eval-forecast:
 	cd backend && python ../eval/forecast_eval.py --write

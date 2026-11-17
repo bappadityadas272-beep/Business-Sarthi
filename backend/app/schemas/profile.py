@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.common import UtcDatetime
 
 Language = Literal["hi", "en"]                       # SPEC: Hindi and English in the prototype
-Purpose = Literal["shop_data", "benchmarking"]
+Purpose = Literal["shop_data", "benchmarking", "hosted_llm"]
 
 
 class MeUpdate(BaseModel):

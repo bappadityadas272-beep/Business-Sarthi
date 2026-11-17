@@ -2,6 +2,25 @@
 
 Newest first. Format: date, checkpoint IDs, what changed, notes for the next person.
 
+## 2026-11-17: Q-05 privacy self-review, Q-02 evaluation report, Q-01 coverage, S-05 done
+
+- **Q-05** `docs/PRIVACY_CHECK.md`: 14 items from ARCHITECTURE section 11, each with the code and the test that
+  proves it; all ticked; not legal advice; a legal review is listed for before any real pilot. Two gaps found and fixed:
+  - **DEC-94** chat redaction: `privacy.redact_identifiers` replaces mobile, Aadhaar and PAN numbers with
+    `[redacted]` before the router, the LLM, the cache and `chat_turns`. Regex only (numbers in words or Devanagari
+    digits are not caught).
+  - **DEC-95** optional consent purpose `hosted_llm`: without it chat never calls the provider (rules route,
+    templates answer, guard `no_llm_consent`). `scripts/demo_run.py` step 7, `eval/chat_eval.py` and
+    `eval/chat_live_check.py` give it for the fictional owners; the seed does not. **Frontend (F-*) must word this
+    consent.**
+- `backend/tests/test_access_sweep.py`: login, ownership (404 like a missing id) and consent (403) checked on every
+  operation in the OpenAPI schema, so a new route cannot skip them; plus no identity-document columns and DEC-86
+  (scheme profile fields never stored).
+- **Q-02** `eval/review_eval.py` (`make eval-review`, part of `make eval`): ML5 20/20 MET on hand-written cases,
+  ML7, ML8 and the public-data check listed as NOT MEASURED with owners, and a summary table of every ML_PLAN
+  section 8 target in `docs/EVAL_REPORT.md`. ML2 pinball is PARTLY: the "unconstrained baseline" is not defined.
+- **Q-01** DONE: coverage gate in CI, 97.5% on services and ml. **S-05** DONE on push run 44139472981 (DEC-96).
+
 ## 2026-11-17: S-04 (backend half), S-05 CI, API end-to-end demo run
 
 - `.github/workflows/ci.yml` (DEC-93): on pushes to main and pull requests, in the project's Docker image: ruff,
